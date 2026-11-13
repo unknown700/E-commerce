@@ -3,6 +3,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bot.keyboards.main_menu import main_menu_kb
 from app.services.user import UserService
 
 router = Router()
@@ -19,6 +20,12 @@ async def start(message: Message, session: AsyncSession):
     )
 
     if created:
-        await message.answer(f"Xush kelibsiz, {user.full_name}! Siz ro'yxatdan o'tdingiz.")
+        await message.answer(
+            f"Welcome, {user.full_name}! You have successfully registered.",
+            reply_markup=main_menu_kb(),
+        )
     else:
-        await message.answer(f"Qaytganingiz bilan, {user.full_name}!")
+        await message.answer(
+            f"Welcome back, {user.full_name}!",
+            reply_markup=main_menu_kb(),
+        )
