@@ -5,8 +5,9 @@ from aiogram import Bot, Dispatcher
 from sqlalchemy import text
 
 from app.bot.handlers import start
+from app.bot.middlewares.db import DbSessionMiddleware
 from app.config import settings
-from app.database.session import engine
+from app.database.session import async_session, engine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ async def main():
 
     bot = Bot(token=settings.bot_token)
     dp = Dispatcher()
+    dp.update.middleware(DbSessionMiddleware(async_session))
     dp.include_router(start.router)
 
     await dp.start_polling(bot)
