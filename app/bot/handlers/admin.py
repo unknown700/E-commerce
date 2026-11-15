@@ -17,6 +17,8 @@ from app.bot.keyboards.orders import (
 )
 from app.services.order import OrderError, OrderService, allowed_statuses
 from app.services.user import UserService
+from app.bot.keyboards.admin import admin_menu_kb
+
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -25,12 +27,8 @@ router.callback_query.filter(IsAdmin())
 
 
 @router.message(Command("admin"))
-async def admin_panel(message: Message, session: AsyncSession):
-    orders = await OrderService(session).get_active_orders()
-    if not orders:
-        await message.answer("No active orders.")
-        return
-    await message.answer("🔄 Active orders:", reply_markup=admin_orders_kb(orders))
+async def admin_panel(message: Message):
+    await message.answer("🛠 <b>Admin panel</b>", reply_markup=admin_menu_kb())
 
 
 @router.callback_query(NavCb.filter(F.to == "admin_orders"))
@@ -38,13 +36,15 @@ async def refresh_orders(call: CallbackQuery, session: AsyncSession):
     orders = await OrderService(session).get_active_orders()
     try:
         if not orders:
-            await call.message.edit_text("No active orders.")
+            await call.message.edit_text(
+                "No active orders.", reply_markup=admin_menu_kb()
+            )
         else:
             await call.message.edit_text(
                 "🔄 Active orders:", reply_markup=admin_orders_kb(orders)
             )
     except TelegramBadRequest:
-        pass  # nothing changed
+        pass  
     await call.answer()
 
 

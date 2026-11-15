@@ -4,6 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.bot.formatting import ACTION_LABELS, STATUS_LABELS, format_price
 from app.bot.keyboards.catalog import NavCb
+from app.bot.keyboards.admin import AdminCb
 
 
 class MyOrderCb(CallbackData, prefix="myorder"):
@@ -42,6 +43,7 @@ def admin_orders_kb(orders) -> InlineKeyboardMarkup:
     for order in orders:
         builder.button(text=_order_label(order), callback_data=AdminOrderCb(id=order.id))
     builder.button(text="🔄 Refresh", callback_data=NavCb(to="admin_orders"))
+    builder.button(text="⬅️ Admin menu", callback_data=AdminCb(action="menu"))
     builder.adjust(1)
     return builder.as_markup()
 

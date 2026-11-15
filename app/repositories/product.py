@@ -32,4 +32,9 @@ class ProductRepository:
             .execution_options(populate_existing=True)
         )
         return list(result.scalars().all())
-    
+
+
+    async def add(self, product: Product) -> Product:
+        self.session.add(product)
+        await self.session.flush()
+        return product    
