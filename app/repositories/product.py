@@ -38,3 +38,9 @@ class ProductRepository:
         self.session.add(product)
         await self.session.flush()
         return product    
+    
+    async def get_all_by_category(self, category_id: int) -> list[Product]:
+        result = await self.session.execute(
+            select(Product).where(Product.category_id == category_id).order_by(Product.name)
+        )
+        return list(result.scalars().all())

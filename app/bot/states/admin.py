@@ -13,3 +13,7 @@ class AddProduct(StatesGroup):
     stock = State()
     photo = State()
     confirm = State()
+
+
+class EditProduct(StatesGroup):
+    value = State()

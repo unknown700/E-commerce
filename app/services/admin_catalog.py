@@ -86,3 +86,58 @@ class AdminCatalogService:
             photo_file_id=photo_file_id,
         )
         return await self.products.add(product)
+
+
+    async def list_products(self, category_id: int) -> list[Product]:
+        return await self.products.get_all_by_category(category_id)
+
+    async def get_product_card(
+        self, product_id: int
+    ) -> tuple[Product, Category] | None:
+        product = await self.products.get_by_id(product_id)
+        if product is None:
+            return None
+        category = await self.categories.get_by_id(product.category_id)
+        return product, category
+
+    async def update_product_field(
+        self, product_id: int, field: str, raw: str
+    ) -> Product:
+        product = await self.products.get_by_id(product_id)
+        if product is None:
+            raise CatalogError("Product not found.")
+
+        if field == "name":
+            name = raw.strip()
+            if not 2 <= len(name) <= 200:
+                raise CatalogError("The name must be 2-200 characters.")
+            product.name = name
+        elif field == "description":
+            text = raw.strip()
+            if text == "-":
+                product.description = None
+            elif len(text) > 500:
+                raise CatalogError("The description is too long (max 500 characters).")
+            else:
+                product.description = text
+        elif field == "price":
+            product.price = parse_price(raw)
+        elif field == "stock":
+            product.stock = parse_stock(raw)
+        else:
+            raise CatalogError("Unknown field.")
+        return product
+
+    async def set_product_photo(self, product_id: int, file_id: str) -> Product:
+        product = await self.products.get_by_id(product_id)
+        if product is None:
+            raise CatalogError("Product not found.")
+        product.photo_file_id = file_id
+        return product
+
+    async def toggle_product(self, product_id: int) -> Product | None:
+        product = await self.products.get_by_id(product_id)
+        if product is None:
+            return None
+        product.is_active = not product.is_active
+        return product    

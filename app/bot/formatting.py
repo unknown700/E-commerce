@@ -65,3 +65,17 @@ def format_order_details(order, customer=None) -> str:
     lines.append(f"\n<b>Total: {format_price(order.total)}</b>")
     lines.append("Payment: 💵 Cash")
     return "\n".join(lines)
+
+
+
+def format_admin_product(product, category) -> str:
+    status = "✅ Visible to customers" if product.is_active else "🚫 Hidden from customers"
+    description = escape(product.description) if product.description else "—"
+    return (
+        f"🛍 <b>{escape(product.name)}</b>\n\n"
+        f"Category: {escape(category.name)}\n"
+        f"Price: {format_price(product.price)}\n"
+        f"Stock: {product.stock}\n"
+        f"Status: {status}\n"
+        f"Description: {description}"
+    )

@@ -11,6 +11,16 @@ from app.bot.middlewares.db import DbSessionMiddleware
 from app.config import settings
 from app.database.session import async_session, engine
 from app.bot.handlers import admin, admin_catalog, cart, catalog, checkout, orders, start
+from app.bot.handlers import (
+    admin,
+    admin_catalog,
+    admin_products,
+    cart,
+    catalog,
+    checkout,
+    orders,
+    start,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,6 +46,7 @@ async def main():
     dp.include_router(orders.router)
     dp.include_router(admin.router)
     dp.include_router(admin_catalog.router)
+    dp.include_router(admin_products.router)
 
     await dp.start_polling(bot)
 
