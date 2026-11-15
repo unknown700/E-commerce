@@ -1,4 +1,3 @@
-
 from html import escape
 
 from aiogram import F, Router
@@ -25,7 +24,7 @@ router = Router()
 async def show_categories(message: Message, session: AsyncSession):
     categories = await CatalogService(session).list_categories()
     if not categories:
-        await message.answer("The catalog is currently empty.")
+        await message.answer("The catalog is empty for now.")
         return
     await message.answer("Choose a category:", reply_markup=categories_kb(categories))
 
@@ -34,9 +33,7 @@ async def show_categories(message: Message, session: AsyncSession):
 async def back_to_categories(call: CallbackQuery, session: AsyncSession):
     categories = await CatalogService(session).list_categories()
     await call.message.delete()
-    await call.message.answer(
-        "Choose a category:", reply_markup=categories_kb(categories)
-    )
+    await call.message.answer("Choose a category:", reply_markup=categories_kb(categories))
     await call.answer()
 
 
@@ -47,13 +44,10 @@ async def show_products(
     products = await CatalogService(session).list_products(callback_data.id)
     await call.message.delete()
     if products:
-        await call.message.answer(
-            "Choose a product:", reply_markup=products_kb(products)
-        )
+        await call.message.answer("Choose a product:", reply_markup=products_kb(products))
     else:
         await call.message.answer(
-            "There are currently no products in this category.",
-            reply_markup=products_kb([]),
+            "There are no products in this category yet.", reply_markup=products_kb([])
         )
     await call.answer()
 
@@ -64,10 +58,10 @@ async def show_product(
 ):
     product = await CatalogService(session).get_product(callback_data.id)
     if product is None or not product.is_active:
-        await call.answer("Product not found.", show_alert=True)
+        await call.answer("Product not found", show_alert=True)
         return
 
-    stock = f"Available: {product.stock} units" if product.stock > 0 else "Out of stock"
+    stock = f"In stock: {product.stock}" if product.stock > 0 else "Out of stock"
     text = (
         f"<b>{escape(product.name)}</b>\n\n"
         f"{escape(product.description or '')}\n\n"
@@ -78,9 +72,7 @@ async def show_product(
     await call.message.delete()
     if product.photo_file_id:
         await call.message.answer_photo(
-            product.photo_file_id,
-            caption=text,
-            reply_markup=product_kb(product.category_id),
+            product.photo_file_id, caption=text, reply_markup=product_kb(product.category_id)
         )
     else:
         await call.message.answer(text, reply_markup=product_kb(product.category_id))

@@ -21,7 +21,7 @@ async def start(message: Message, session: AsyncSession):
 
     if created:
         await message.answer(
-            f"Welcome, {user.full_name}! You have successfully registered.",
+            f"Welcome, {user.full_name}! You are now registered.",
             reply_markup=main_menu_kb(),
         )
     else:
