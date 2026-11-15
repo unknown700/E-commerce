@@ -7,9 +7,25 @@ from app.repositories.cart import CartRepository
 from app.repositories.order import OrderRepository
 from app.repositories.product import ProductRepository
 
+ACTIVE_STATUSES = ["new", "confirmed", "preparing", "ready", "on_the_way"]
+
 
 class OrderError(Exception):
     pass
+
+
+def allowed_statuses(order: Order) -> list[str]:
+    """Which statuses can this order move to next."""
+    if order.status == "new":
+        return ["confirmed", "cancelled"]
+    if order.status == "confirmed":
+        return ["preparing", "cancelled"]
+    if order.status == "preparing":
+        next_status = "on_the_way" if order.delivery_type == "delivery" else "ready"
+        return [next_status, "cancelled"]
+    if order.status in ("on_the_way", "ready"):
+        return ["delivered"]
+    return []
 
 
 class OrderService:
@@ -76,3 +92,35 @@ class OrderService:
         await self.orders.add(order)
         await self.cart.clear(user_id)
         return order
+
+    async def get_order(self, order_id: int) -> Order | None:
+        return await self.orders.get_by_id(order_id)
+
+    async def get_user_orders(self, user_id: int) -> list[Order]:
+        return await self.orders.get_by_user(user_id)
+
+    async def get_active_orders(self) -> list[Order]:
+        return await self.orders.get_by_statuses(ACTIVE_STATUSES)
+
+    async def change_status(self, order_id: int, new_status: str) -> Order:
+        order = await self.orders.get_by_id(order_id, for_update=True)
+        if order is None:
+            raise OrderError("Order not found.")
+        if new_status not in allowed_statuses(order):
+            raise OrderError("This status change is not allowed.")
+
+        if new_status == "cancelled":
+            await self._restock(order)
+        order.status = new_status
+        return order
+
+    async def _restock(self, order: Order) -> None:
+        product_ids = [i.product_id for i in order.items if i.product_id is not None]
+        if not product_ids:
+            return
+        products = await self.products.get_for_update(product_ids)
+        by_id = {product.id: product for product in products}
+        for item in order.items:
+            product = by_id.get(item.product_id)
+            if product is not None:
+                product.stock += item.quantity

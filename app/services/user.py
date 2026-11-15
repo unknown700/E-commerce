@@ -16,3 +16,8 @@ class UserService:
             return user, False
         user = await self.repo.create(telegram_id, username, full_name)
         return user, True
+
+
+    async def get(self, user_id: int) -> User | None:
+        return await self.repo.get_by_id(user_id)
+    

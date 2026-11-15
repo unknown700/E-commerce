@@ -21,3 +21,8 @@ class UserRepository:
         self.session.add(user)
         await self.session.flush()
         return user
+
+
+    async def get_by_id(self, user_id: int) -> User | None:
+        return await self.session.get(User, user_id)
+    

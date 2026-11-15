@@ -20,6 +20,7 @@ class Settings(BaseSettings):
         )
 
 
+
     @property
     def admin_id_list(self) -> list[int]:
         return [int(x) for x in self.admin_ids.split(",") if x.strip()]

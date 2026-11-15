@@ -6,12 +6,10 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from sqlalchemy import text
 
-from app.bot.handlers import catalog, start
+from app.bot.handlers import admin, cart, catalog, checkout, orders, start
 from app.bot.middlewares.db import DbSessionMiddleware
 from app.config import settings
 from app.database.session import async_session, engine
-from app.bot.handlers import cart, catalog, start
-from app.bot.handlers import cart, catalog, checkout, start
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,7 +22,9 @@ async def main():
 
     bot = Bot(
         token=settings.bot_token,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        default=DefaultBotProperties(
+            parse_mode=ParseMode.HTML, link_preview_is_disabled=True
+        ),
     )
     dp = Dispatcher()
     dp.update.middleware(DbSessionMiddleware(async_session))
@@ -32,6 +32,8 @@ async def main():
     dp.include_router(catalog.router)
     dp.include_router(cart.router)
     dp.include_router(checkout.router)
+    dp.include_router(orders.router)
+    dp.include_router(admin.router)
 
     await dp.start_polling(bot)
 
