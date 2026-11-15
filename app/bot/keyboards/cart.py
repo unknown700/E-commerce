@@ -33,6 +33,11 @@ def cart_kb(items) -> InlineKeyboardMarkup:
         )
     builder.row(
         InlineKeyboardButton(
+            text="✅ Checkout", callback_data=CartCb(action="checkout").pack()
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
             text="🗑 Clear cart", callback_data=CartCb(action="clear").pack()
         )
     )

@@ -66,7 +66,7 @@ async def add_to_cart(call: CallbackQuery, callback_data: AddCb, session: AsyncS
     await call.answer(messages[result], show_alert=result != "added")
 
 
-@router.callback_query(CartCb.filter())
+@router.callback_query(CartCb.filter(F.action.in_({"inc", "dec", "del", "clear"})))
 async def cart_action(call: CallbackQuery, callback_data: CartCb, session: AsyncSession):
     user = await get_user(call.from_user, session)
     service = CartService(session)

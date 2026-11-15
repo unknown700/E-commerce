@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     postgres_db: str
     postgres_host: str = "localhost"
     postgres_port: int = 5432
+    admin_ids: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -18,5 +19,9 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
+
+    @property
+    def admin_id_list(self) -> list[int]:
+        return [int(x) for x in self.admin_ids.split(",") if x.strip()]
 
 settings = Settings()

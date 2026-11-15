@@ -18,3 +18,18 @@ class ProductRepository:
 
     async def get_by_id(self, product_id: int) -> Product | None:
         return await self.session.get(Product, product_id)
+
+
+
+
+
+    async def get_for_update(self, product_ids: list[int]) -> list[Product]:
+        result = await self.session.execute(
+            select(Product)
+            .where(Product.id.in_(product_ids))
+            .order_by(Product.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return list(result.scalars().all())
+    
