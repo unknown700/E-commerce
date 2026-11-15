@@ -10,6 +10,7 @@ from app.bot.handlers import catalog, start
 from app.bot.middlewares.db import DbSessionMiddleware
 from app.config import settings
 from app.database.session import async_session, engine
+from app.bot.handlers import cart, catalog, start
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ async def main():
     dp.update.middleware(DbSessionMiddleware(async_session))
     dp.include_router(start.router)
     dp.include_router(catalog.router)
+    dp.include_router(cart.router)
 
     await dp.start_polling(bot)
 

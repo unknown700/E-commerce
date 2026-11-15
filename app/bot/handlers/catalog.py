@@ -70,10 +70,11 @@ async def show_product(
     )
 
     await call.message.delete()
+    keyboard = product_kb(product.category_id, product.id, product.stock > 0)
     if product.photo_file_id:
         await call.message.answer_photo(
-            product.photo_file_id, caption=text, reply_markup=product_kb(product.category_id)
+            product.photo_file_id, caption=text, reply_markup=keyboard
         )
     else:
-        await call.message.answer(text, reply_markup=product_kb(product.category_id))
+        await call.message.answer(text, reply_markup=keyboard)
     await call.answer()

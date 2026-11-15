@@ -17,6 +17,10 @@ class NavCb(CallbackData, prefix="nav"):
     to: str
 
 
+class AddCb(CallbackData, prefix="add"):
+    product_id: int
+
+
 def categories_kb(categories) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for category in categories:
@@ -37,7 +41,10 @@ def products_kb(products) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def product_kb(category_id: int) -> InlineKeyboardMarkup:
+def product_kb(category_id: int, product_id: int, in_stock: bool) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="⬅️ Before", callback_data=CategoryCb(id=category_id))
+    if in_stock:
+        builder.button(text="🛒 Add to cart", callback_data=AddCb(product_id=product_id))
+    builder.button(text="⬅️ Back", callback_data=CategoryCb(id=category_id))
+    builder.adjust(1)
     return builder.as_markup()
