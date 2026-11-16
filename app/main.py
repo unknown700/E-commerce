@@ -4,23 +4,25 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import text
 
-from app.bot.handlers import admin, cart, catalog, checkout, orders, start
-from app.bot.middlewares.db import DbSessionMiddleware
-from app.config import settings
-from app.database.session import async_session, engine
-from app.bot.handlers import admin, admin_catalog, cart, catalog, checkout, orders, start
 from app.bot.handlers import (
     admin,
     admin_catalog,
     admin_products,
+    admin_reports,
     cart,
     catalog,
     checkout,
     orders,
     start,
 )
+from app.bot.middlewares.db import DbSessionMiddleware
+from app.config import settings
+from app.database.session import async_session, engine
+from app.scheduler.jobs import send_daily_report
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,8 +49,32 @@ async def main():
     dp.include_router(admin.router)
     dp.include_router(admin_catalog.router)
     dp.include_router(admin_products.router)
+    dp.include_router(admin_reports.router)
 
-    await dp.start_polling(bot)
+    scheduler = AsyncIOScheduler(timezone=settings.timezone)
+    scheduler.add_job(
+        send_daily_report,
+        CronTrigger(
+            hour=settings.daily_report_hour,
+            minute=settings.daily_report_minute,
+            timezone=settings.timezone,
+        ),
+        args=[bot],
+        id="daily_report",
+        replace_existing=True,
+    )
+    scheduler.start()
+    logger.info(
+        "Daily report scheduled at %02d:%02d (%s)",
+        settings.daily_report_hour,
+        settings.daily_report_minute,
+        settings.timezone,
+    )
+
+    try:
+        await dp.start_polling(bot)
+    finally:
+        scheduler.shutdown(wait=False)
 
 
 if __name__ == "__main__":

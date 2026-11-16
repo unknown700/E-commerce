@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     admin_ids: str = ""
+    timezone: str = "Europe/Berlin"
+    daily_report_hour: int = 21
+    daily_report_minute: int = 0
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

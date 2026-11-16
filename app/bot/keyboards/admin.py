@@ -13,6 +13,7 @@ class AdminCb(CallbackData, prefix="adm"):
 def admin_menu_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="📋 Orders", callback_data=NavCb(to="admin_orders"))
+    builder.button(text="📊 Reports", callback_data=AdminCb(action="report_today"))
     builder.button(text="🛍 Products", callback_data=AdminCb(action="products"))
     builder.button(text="🗂 Categories", callback_data=AdminCb(action="categories"))
     builder.button(text="➕ Add product", callback_data=AdminCb(action="prod_add"))
@@ -113,4 +114,16 @@ def product_admin_kb(product) -> InlineKeyboardMarkup:
         callback_data=AdminCb(action="plist", id=product.category_id),
     )
     builder.adjust(2, 2, 1, 1, 1)
+    return builder.as_markup()
+
+
+def reports_kb(current: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for period, label in (("today", "Today"), ("week", "7 days"), ("month", "30 days")):
+        mark = "• " if period == current else ""
+        builder.button(
+            text=f"{mark}{label}", callback_data=AdminCb(action=f"report_{period}")
+        )
+    builder.button(text="⬅️ Admin menu", callback_data=AdminCb(action="menu"))
+    builder.adjust(3, 1)
     return builder.as_markup()
