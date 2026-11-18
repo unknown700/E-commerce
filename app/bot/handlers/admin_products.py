@@ -16,8 +16,14 @@ from app.bot.keyboards.admin import (
     product_categories_kb,
     products_admin_kb,
 )
-from app.bot.states.admin import EditProduct
-from app.services.admin_catalog import AdminCatalogService, CatalogError
+from app.bot.handlers.cart import get_user
+from app.bot.states.admin import EditProduct, ReceiveStock
+from app.services.admin_catalog import (
+    AdminCatalogService,
+    CatalogError,
+    parse_stock,
+)
+from app.services.inventory import InventoryError, InventoryService
 
 router = Router()
 router.message.filter(IsAdmin())
@@ -112,7 +118,7 @@ async def toggle_product(
 
 
 # ---------- edit ----------
-@router.message(Command("cancel"), StateFilter(EditProduct))
+@router.message(Command("cancel"), StateFilter(EditProduct, ReceiveStock))
 async def cancel_edit(message: Message, state: FSMContext):
     await state.clear()
     await message.answer("Cancelled.", reply_markup=admin_menu_kb())
@@ -136,10 +142,17 @@ async def edit_text_value(message: Message, state: FSMContext, session: AsyncSes
         return
 
     try:
-        await AdminCatalogService(session).update_product_field(
-            data["product_id"], data["field"], message.text
-        )
-    except CatalogError as error:
+        if data["field"] == "stock":
+            new_stock = parse_stock(message.text)
+            admin = await get_user(message.from_user, session)
+            await InventoryService(session).set_stock(
+                data["product_id"], new_stock, admin.id
+            )
+        else:
+            await AdminCatalogService(session).update_product_field(
+                data["product_id"], data["field"], message.text
+            )
+    except (CatalogError, InventoryError) as error:
         await message.answer(f"❌ {error}\nTry again or /cancel.")
         return
 
@@ -166,3 +179,36 @@ async def edit_photo_value(message: Message, state: FSMContext, session: AsyncSe
     await state.clear()
     await message.answer("✅ Photo updated.")
     await show_updated_card(message, session, data["product_id"])
+
+
+
+# ---------- receive stock ----------
+@router.callback_query(AdminCb.filter(F.action == "recv"))
+async def receive_start(call: CallbackQuery, callback_data: AdminCb, state: FSMContext):
+    await state.clear()
+    await state.update_data(product_id=callback_data.id)
+    await state.set_state(ReceiveStock.quantity)
+    await call.message.answer(
+        "How many items arrived? (a whole number, e.g. 20)", reply_markup=cancel_kb()
+    )
+    await call.answer()
+
+
+@router.message(ReceiveStock.quantity, F.text, ~F.text.startswith("/"))
+async def receive_quantity(message: Message, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    try:
+        quantity = parse_stock(message.text)
+        admin = await get_user(message.from_user, session)
+        product = await InventoryService(session).receive(
+            data["product_id"], quantity, admin.id
+        )
+    except (CatalogError, InventoryError) as error:
+        await message.answer(f"❌ {error}\nTry again or /cancel.")
+        return
+
+    await state.clear()
+    await message.answer(
+        f"✅ Received {quantity} × {escape(product.name)}. Stock now: {product.stock}"
+    )
+    await show_updated_card(message, session, product.id)    

@@ -28,6 +28,7 @@ from app.database.models.order import Order
 from app.database.models.user import User
 from app.services.cart import CartService
 from app.services.order import OrderError, OrderService
+from app.bot.notifications import notify_low_stock
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -205,7 +206,7 @@ async def confirm_order(
     user = await get_user(call.from_user, session)
 
     try:
-        order = await OrderService(session).create_order(
+            order, low_stock = await OrderService(session).create_order(
             user_id=user.id,
             delivery_type=data["delivery_type"],
             phone=data["phone"],
@@ -226,4 +227,5 @@ async def confirm_order(
     )
     await call.message.answer("Back to the main menu.", reply_markup=main_menu_kb())
     await notify_admins(bot, order, user)
+    await notify_low_stock(bot, low_stock)
     await call.answer()

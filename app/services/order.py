@@ -2,8 +2,10 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database.models.order import Order, OrderItem
 from app.repositories.cart import CartRepository
+from app.repositories.inventory import InventoryRepository
 from app.repositories.order import OrderRepository
 from app.repositories.product import ProductRepository
 
@@ -33,6 +35,7 @@ class OrderService:
         self.cart = CartRepository(session)
         self.products = ProductRepository(session)
         self.orders = OrderRepository(session)
+        self.inventory = InventoryRepository(session)
 
     async def create_order(
         self,
@@ -42,7 +45,7 @@ class OrderService:
         address: str | None,
         latitude: float | None,
         longitude: float | None,
-    ) -> Order:
+    ) -> tuple[Order, list[tuple[str, int]]]:
         cart_items = await self.cart.get_items(user_id)
         if not cart_items:
             raise OrderError("Your cart is empty.")
@@ -62,7 +65,7 @@ class OrderService:
                     f"Not enough stock for {product.name} (available: {product.stock})."
                 )
 
-        # 2) create the order, decrease stock, clear the cart
+        # 2) create the order, decrease stock, remember low-stock products
         order = Order(
             user_id=user_id,
             status="new",
@@ -75,10 +78,21 @@ class OrderService:
             total=Decimal("0"),
         )
         total = Decimal("0")
+        low_stock: list[tuple[str, int]] = []
+        threshold = settings.low_stock_threshold
+
         for item in cart_items:
             product = by_id[item.product_id]
+            old_stock = product.stock
             product.stock -= item.quantity
             total += product.price * item.quantity
+
+            # alert only when the stock crosses the threshold (no spam on every order)
+            crossed = old_stock > threshold >= product.stock
+            sold_out = product.stock == 0 and old_stock > 0
+            if crossed or sold_out:
+                low_stock.append((product.name, product.stock))
+
             order.items.append(
                 OrderItem(
                     product_id=product.id,
@@ -89,9 +103,21 @@ class OrderService:
             )
         order.total = total
 
-        await self.orders.add(order)
+        await self.orders.add(order)  # order.id is known after this
+
+        # 3) write the stock history, clear the cart
+        for item in cart_items:
+            product = by_id[item.product_id]
+            await self.inventory.add_movement(
+                product.id,
+                -item.quantity,
+                product.stock,
+                "sale",
+                order_id=order.id,
+                user_id=user_id,
+            )
         await self.cart.clear(user_id)
-        return order
+        return order, low_stock
 
     async def get_order(self, order_id: int) -> Order | None:
         return await self.orders.get_by_id(order_id)
@@ -122,5 +148,13 @@ class OrderService:
         by_id = {product.id: product for product in products}
         for item in order.items:
             product = by_id.get(item.product_id)
-            if product is not None:
-                product.stock += item.quantity
+            if product is None:
+                continue
+            product.stock += item.quantity
+            await self.inventory.add_movement(
+                product.id,
+                item.quantity,
+                product.stock,
+                "cancel_return",
+                order_id=order.id,
+            )

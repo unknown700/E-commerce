@@ -15,9 +15,10 @@ def admin_menu_kb() -> InlineKeyboardMarkup:
     builder.button(text="📋 Orders", callback_data=NavCb(to="admin_orders"))
     builder.button(text="📊 Reports", callback_data=AdminCb(action="report_today"))
     builder.button(text="🛍 Products", callback_data=AdminCb(action="products"))
+    builder.button(text="🏬 Warehouse", callback_data=AdminCb(action="wh"))
     builder.button(text="🗂 Categories", callback_data=AdminCb(action="categories"))
     builder.button(text="➕ Add product", callback_data=AdminCb(action="prod_add"))
-    builder.adjust(1)
+    builder.adjust(2)
     return builder.as_markup()
 
 
@@ -103,7 +104,12 @@ def product_admin_kb(product) -> InlineKeyboardMarkup:
         callback_data=AdminCb(action="edit_description", id=product.id),
     )
     builder.button(text="💰 Price", callback_data=AdminCb(action="edit_price", id=product.id))
-    builder.button(text="📦 Stock", callback_data=AdminCb(action="edit_stock", id=product.id))
+    builder.button(
+        text="📦 Set stock", callback_data=AdminCb(action="edit_stock", id=product.id)
+    )
+    builder.button(
+        text="📥 Receive stock", callback_data=AdminCb(action="recv", id=product.id)
+    )
     builder.button(text="🖼 Photo", callback_data=AdminCb(action="edit_photo", id=product.id))
     toggle_text = (
         "🚫 Hide from customers" if product.is_active else "✅ Show to customers"
@@ -113,8 +119,19 @@ def product_admin_kb(product) -> InlineKeyboardMarkup:
         text="⬅️ Back",
         callback_data=AdminCb(action="plist", id=product.category_id),
     )
-    builder.adjust(2, 2, 1, 1, 1)
+    builder.adjust(2, 2, 2, 1, 1)
     return builder.as_markup()
+
+
+def warehouse_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="⚠️ Low stock", callback_data=AdminCb(action="wh_low"))
+    builder.button(text="📜 Movement history", callback_data=AdminCb(action="wh_history"))
+    builder.button(text="📥 Export to Excel", callback_data=AdminCb(action="wh_export"))
+    builder.button(text="⬅️ Admin menu", callback_data=AdminCb(action="menu"))
+    builder.adjust(1)
+    return builder.as_markup()
+
 
 
 def reports_kb(current: str) -> InlineKeyboardMarkup:

@@ -17,3 +17,8 @@ class AddProduct(StatesGroup):
 
 class EditProduct(StatesGroup):
     value = State()
+
+
+
+class ReceiveStock(StatesGroup):
+    quantity = State()

@@ -1,6 +1,8 @@
 from datetime import timedelta
 from decimal import Decimal
 from html import escape
+from zoneinfo import ZoneInfo
+from app.config import settings
 
 
 DELIVERY_LABELS = {"delivery": "🚚 Delivery", "pickup": "🏪 Pickup"}
@@ -226,3 +228,46 @@ def format_report(report) -> str:
         "orders.</i>",
     ]
     return "\n".join(lines)
+
+
+
+REASON_CODES = {
+    "receipt": "REC",
+    "sale": "SAL",
+    "cancel_return": "CAN",
+    "adjustment": "ADJ",
+}
+
+
+def format_low_stock(products, threshold: int) -> str:
+    if not products:
+        return (
+            "✅ <b>Low stock</b>\n"
+            f"No active products at or below {threshold} pcs."
+        )
+    rows = [f"{'Product':<22} {'Left':>5}", "-" * 28]
+    for product in products:
+        rows.append(f"{_cut(product.name, 22):<22} {product.stock:>5}")
+    return f"⚠️ <b>Low stock</b> (at or below {threshold} pcs)\n" + _table(rows)
+
+
+def format_movements(rows) -> str:
+    if not rows:
+        return (
+            "📜 <b>Movement history</b>\n"
+            "No movements yet. Changes are recorded from now on."
+        )
+    tz = ZoneInfo(settings.timezone)
+    table = [
+        f"{'Date':<11} {'Product':<10} {'Type':<4} {'Chg':>5} {'Left':>4}",
+        "-" * 38,
+    ]
+    for movement, product_name, _user_name in rows:
+        when = movement.created_at.astimezone(tz).strftime("%d.%m %H:%M")
+        table.append(
+            f"{when:<11} {_cut(product_name, 10):<10} "
+            f"{REASON_CODES.get(movement.reason, '?'):<4} "
+            f"{movement.delta:>+5d} {movement.stock_after:>4}"
+        )
+    legend = "REC receipt · SAL sale · CAN cancelled order · ADJ manual change"
+    return "📜 <b>Movement history</b> (latest)\n" + _table(table) + f"\n<i>{legend}</i>"

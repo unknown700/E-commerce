@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     timezone: str = "Europe/Berlin"
     daily_report_hour: int = 21
     daily_report_minute: int = 0
+    low_stock_threshold: int = 5
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
