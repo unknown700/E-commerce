@@ -22,3 +22,8 @@ class EditProduct(StatesGroup):
 
 class ReceiveStock(StatesGroup):
     quantity = State()
+
+
+
+class AddCourier(StatesGroup):
+    identifier = State()    

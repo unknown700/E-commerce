@@ -48,12 +48,18 @@ def admin_orders_kb(orders) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def admin_order_kb(order_id: int, statuses: list[str]) -> InlineKeyboardMarkup:
+def admin_order_kb(
+    order_id: int, statuses: list[str], can_assign: bool = False
+) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for status in statuses:
         builder.button(
             text=ACTION_LABELS[status],
             callback_data=StatusCb(id=order_id, status=status),
+        )
+    if can_assign:
+        builder.button(
+            text="🚚 Assign courier", callback_data=AdminCb(action="assign", id=order_id)
         )
     builder.button(text="⬅️ Back to orders", callback_data=NavCb(to="admin_orders"))
     builder.adjust(1)

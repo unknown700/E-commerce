@@ -25,6 +25,22 @@ from app.config import settings
 from app.database.session import async_session, engine
 from app.scheduler.jobs import send_daily_report
 
+
+from app.bot.handlers import (
+    admin,
+    admin_catalog,
+    admin_couriers,
+    admin_products,
+    admin_reports,
+    admin_warehouse,
+    cart,
+    catalog,
+    checkout,
+    courier,
+    orders,
+    start,
+)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -52,6 +68,8 @@ async def main():
     dp.include_router(admin_products.router)
     dp.include_router(admin_reports.router)
     dp.include_router(admin_warehouse.router)
+    dp.include_router(admin_couriers.router)
+    dp.include_router(courier.router)
 
     scheduler = AsyncIOScheduler(timezone=settings.timezone)
     scheduler.add_job(

@@ -40,7 +40,7 @@ def format_price(value) -> str:
     return f"{value:,.0f}".replace(",", " ") + " UZS"
 
 
-def format_order_details(order, customer=None) -> str:
+def format_order_details(order, customer=None, courier=None) -> str:
     created = order.created_at.astimezone().strftime("%d.%m.%Y %H:%M")
     lines = [
         f"📦 <b>Order #{order.id}</b>",
@@ -60,6 +60,11 @@ def format_order_details(order, customer=None) -> str:
         lines.append(
             f'📍 <a href="https://maps.google.com/?q={order.latitude},{order.longitude}">Open on map</a>'
         )
+    if courier is not None:
+        courier_name = escape(courier.full_name)
+        if courier.username:
+            courier_name += f" (@{escape(courier.username)})"
+        lines.append(f"🚚 Courier: {courier_name}")
 
     lines.append("\nItems:")
     for item in order.items:
@@ -69,6 +74,26 @@ def format_order_details(order, customer=None) -> str:
         )
     lines.append(f"\n<b>Total: {format_price(order.total)}</b>")
     lines.append("Payment: 💵 Cash")
+    return "\n".join(lines)
+
+
+COURIER_HINTS = {
+    "new": "⏳ Waiting for confirmation.",
+    "confirmed": "⏳ Being prepared. You will get a message when it is ready.",
+    "preparing": "📦 Tap “Picked up” when you take the order.",
+    "on_the_way": "🚚 Tap “Delivered” after you hand it over and collect the payment.",
+}
+
+
+def format_courier_order(order, customer=None) -> str:
+    lines = [
+        format_order_details(order, customer),
+        "",
+        f"💵 <b>Collect cash: {format_price(order.total)}</b>",
+    ]
+    hint = COURIER_HINTS.get(order.status)
+    if hint:
+        lines.append(hint)
     return "\n".join(lines)
 
 

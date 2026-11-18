@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -42,3 +42,23 @@ class OrderRepository:
             .limit(limit)
         )
         return list(result.scalars().all())
+
+
+    async def get_by_courier(
+        self, courier_id: int, statuses: list[str], limit: int = 20
+    ) -> list[Order]:
+        result = await self.session.execute(
+            select(Order)
+            .where(Order.courier_id == courier_id, Order.status.in_(statuses))
+            .order_by(Order.id)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_for_courier(self, courier_id: int, statuses: list[str]) -> int:
+        result = await self.session.execute(
+            select(func.count(Order.id)).where(
+                Order.courier_id == courier_id, Order.status.in_(statuses)
+            )
+        )
+        return result.scalar_one()    

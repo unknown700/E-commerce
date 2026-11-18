@@ -21,6 +21,9 @@ class Order(Base):
     address: Mapped[str | None] = mapped_column(Text)
     latitude: Mapped[float | None] = mapped_column(Float)
     longitude: Mapped[float | None] = mapped_column(Float)
+    courier_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

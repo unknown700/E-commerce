@@ -1,11 +1,10 @@
 import logging
 
 from aiogram import Bot, F, Router
-from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from app.bot.filters import IsAdmin
 from app.bot.formatting import STATUS_MESSAGES, format_order_details
 from app.bot.keyboards.catalog import NavCb
@@ -15,7 +14,13 @@ from app.bot.keyboards.orders import (
     admin_order_kb,
     admin_orders_kb,
 )
-from app.services.order import OrderError, OrderService, allowed_statuses
+from app.services.order import (
+    OrderError,
+    OrderService,
+    allowed_statuses,
+    can_assign_courier,
+)
+from app.bot.keyboards.couriers import courier_open_kb
 from app.services.user import UserService
 from app.bot.keyboards.admin import admin_menu_kb
 
@@ -56,10 +61,14 @@ async def order_detail(
     if order is None:
         await call.answer("Order not found", show_alert=True)
         return
-    customer = await UserService(session).get(order.user_id)
+    users = UserService(session)
+    customer = await users.get(order.user_id)
+    courier = await users.get(order.courier_id) if order.courier_id else None
     await call.message.edit_text(
-        format_order_details(order, customer),
-        reply_markup=admin_order_kb(order.id, allowed_statuses(order)),
+        format_order_details(order, customer, courier),
+        reply_markup=admin_order_kb(
+            order.id, allowed_statuses(order), can_assign_courier(order)
+        ),
     )
     await call.answer()
 
@@ -76,10 +85,14 @@ async def change_status(
         await call.answer(str(error), show_alert=True)
         return
 
-    customer = await UserService(session).get(order.user_id)
+    users = UserService(session)
+    customer = await users.get(order.user_id)
+    courier = await users.get(order.courier_id) if order.courier_id else None
     await call.message.edit_text(
-        format_order_details(order, customer),
-        reply_markup=admin_order_kb(order.id, allowed_statuses(order)),
+        format_order_details(order, customer, courier),
+        reply_markup=admin_order_kb(
+            order.id, allowed_statuses(order), can_assign_courier(order)
+        ),
     )
 
     try:
@@ -88,4 +101,22 @@ async def change_status(
         )
     except TelegramAPIError:
         logger.warning("Could not notify customer %s", customer.telegram_id)
+
+    # tell the courier when the order is ready or cancelled
+    if courier is not None and order.status in ("preparing", "cancelled"):
+        text = (
+            f"📦 Order #{order.id} is ready for pickup."
+            if order.status == "preparing"
+            else f"❌ Order #{order.id} was cancelled."
+        )
+        try:
+            await bot.send_message(
+                courier.telegram_id,
+                text,
+                reply_markup=courier_open_kb(order.id)
+                if order.status == "preparing"
+                else None,
+            )
+        except TelegramAPIError:
+            logger.warning("Could not notify courier %s", courier.telegram_id)
     await call.answer("Status updated")

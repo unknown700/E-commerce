@@ -8,8 +8,15 @@ from app.repositories.cart import CartRepository
 from app.repositories.inventory import InventoryRepository
 from app.repositories.order import OrderRepository
 from app.repositories.product import ProductRepository
+from app.repositories.user import UserRepository
 
 ACTIVE_STATUSES = ["new", "confirmed", "preparing", "ready", "on_the_way"]
+COURIER_STATUSES = ["new", "confirmed", "preparing", "on_the_way"]
+ASSIGNABLE_STATUSES = ("new", "confirmed", "preparing")
+
+
+def can_assign_courier(order: Order) -> bool:
+    return order.delivery_type == "delivery" and order.status in ASSIGNABLE_STATUSES
 
 
 class OrderError(Exception):
@@ -36,6 +43,7 @@ class OrderService:
         self.products = ProductRepository(session)
         self.orders = OrderRepository(session)
         self.inventory = InventoryRepository(session)
+        self.users = UserRepository(session)
 
     async def create_order(
         self,
@@ -158,3 +166,41 @@ class OrderService:
                 "cancel_return",
                 order_id=order.id,
             )
+
+
+    async def get_courier_orders(self, courier_id: int) -> list[Order]:
+        return await self.orders.get_by_courier(courier_id, COURIER_STATUSES)
+
+    async def assign_courier(
+        self, order_id: int, courier_id: int
+    ) -> tuple[Order, int | None]:
+        order = await self.orders.get_by_id(order_id, for_update=True)
+        if order is None:
+            raise OrderError("Order not found.")
+        if not can_assign_courier(order):
+            raise OrderError("A courier cannot be assigned to this order.")
+
+        courier = await self.users.get_by_id(courier_id)
+        if courier is None or courier.role != "courier" or not courier.is_active:
+            raise OrderError("Courier not found.")
+
+        previous_id = order.courier_id
+        order.courier_id = courier.id
+        return order, previous_id
+
+    async def courier_action(self, order_id: int, courier_id: int, action: str) -> Order:
+        order = await self.orders.get_by_id(order_id)
+        if order is None or order.courier_id != courier_id:
+            raise OrderError("This order is not assigned to you.")
+
+        if action == "pickup":
+            if order.status != "preparing":
+                raise OrderError("The order is not ready for pickup yet.")
+            new_status = "on_the_way"
+        elif action == "deliver":
+            if order.status != "on_the_way":
+                raise OrderError("Pick the order up first.")
+            new_status = "delivered"
+        else:
+            raise OrderError("Unknown action.")
+        return await self.change_status(order_id, new_status)
