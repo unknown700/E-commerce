@@ -38,7 +38,7 @@ class ExportService:
         workbook = Workbook()
         stock_sheet = workbook.active
         stock_sheet.title = "Stock"
-        stock_sheet.append(["ID", "Category", "Product", "Price (UZS)", "Stock", "Status"])
+        stock_sheet.append(["ID", "Category", "Product", "Price (USD)", "Stock", "Status"])
         for product, category_name in products:
             stock_sheet.append(
                 [

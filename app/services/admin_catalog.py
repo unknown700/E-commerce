@@ -13,13 +13,13 @@ class CatalogError(Exception):
 
 
 def parse_price(text: str) -> Decimal:
-    cleaned = text.replace(" ", "").replace(",", ".")
+    cleaned = text.strip().replace("$", "").replace(" ", "").replace(",", "")
     try:
         value = Decimal(cleaned)
     except InvalidOperation:
-        raise CatalogError("Please send the price as a number, e.g. 3200000.")
-    if not value.is_finite() or value <= 0 or value >= Decimal("10000000000"):
-        raise CatalogError("Price must be greater than 0 and less than 10 000 000 000.")
+        raise CatalogError("Please send the price as a number, e.g. 499 or 499.99.")
+    if not value.is_finite() or value <= 0 or value >= Decimal("10000000"):
+        raise CatalogError("Price must be greater than $0 and less than $10,000,000.")
     return value.quantize(Decimal("0.01"))
 
 

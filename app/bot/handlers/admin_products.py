@@ -32,7 +32,7 @@ router.callback_query.filter(IsAdmin())
 EDIT_PROMPTS = {
     "name": "Send the new product name:",
     "description": "Send the new description (or send - to remove it):",
-    "price": "Send the new price in UZS (numbers only, e.g. 3200000):",
+    "price": "Send the new price in USD (e.g. 499 or 499.99):",
     "stock": "Send the new stock quantity (a whole number):",
     "photo": "Send the new product photo:",
 }

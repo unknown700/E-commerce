@@ -16,7 +16,8 @@ class PromoError(Exception):
 
 
 def _money(value: Decimal) -> str:
-    return f"{value:,.0f}".replace(",", " ")
+    text = f"${value:,.2f}"
+    return text[:-3] if text.endswith(".00") else text
 
 
 def parse_percent(text: str) -> Decimal:

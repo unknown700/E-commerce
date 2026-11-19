@@ -160,7 +160,7 @@ async def add_product_name(message: Message, state: FSMContext):
 async def ask_price(message: Message, state: FSMContext):
     await state.set_state(AddProduct.price)
     await message.answer(
-        "Send the price in UZS (numbers only, e.g. 3200000):", reply_markup=cancel_kb()
+        "Send the price in USD (e.g. 499 or 499.99):", reply_markup=cancel_kb()
     )
 
 

@@ -37,7 +37,10 @@ ACTION_LABELS = {
 
 
 def format_price(value) -> str:
-    return f"{value:,.0f}".replace(",", " ") + " UZS"
+    value = Decimal(value)
+    if value == value.to_integral_value():
+        return f"${value:,.0f}"
+    return f"${value:,.2f}"
 
 
 def format_order_details(order, customer=None, courier=None) -> str:
@@ -138,7 +141,7 @@ STATUS_NAMES = {
 
 
 def _amount(value) -> str:
-    return f"{value:,.0f}".replace(",", " ")
+    return f"{value:,.2f}"
 
 
 def _cut(text: str, width: int) -> str:
@@ -313,7 +316,7 @@ def format_promos(rows) -> str:
     table = [f"{'Code':<12} {'Discount':>9} {'Used':>7} {'Until':>5}", "-" * 36]
     for promo, uses in rows:
         discount = (
-            f"{promo.value:.0f}%" if promo.kind == "percent" else _amount(promo.value)
+            f"{promo.value:.0f}%" if promo.kind == "percent" else format_price(promo.value)
         )
         used = f"{uses}/{promo.max_uses}" if promo.max_uses else str(uses)
         until = (

@@ -122,7 +122,7 @@ async def new_kind(call: CallbackQuery, callback_data: AdminCb, state: FSMContex
     prompt = (
         "Send the discount percent (1-90):"
         if kind == "percent"
-        else "Send the discount amount in UZS (e.g. 50000):"
+        else "Send the discount amount in USD (e.g. 5):"
     )
     await call.message.answer(prompt, reply_markup=cancel_kb())
     await call.answer()
@@ -143,7 +143,7 @@ async def new_value(message: Message, state: FSMContext):
     await state.update_data(value=str(value))
     await state.set_state(AddPromo.min_order)
     await message.answer(
-        "Minimum order amount in UZS (send 0 for no minimum):", reply_markup=cancel_kb()
+        "Minimum order amount in USD (send 0 for no minimum):", reply_markup=cancel_kb()
     )
 
 
