@@ -17,6 +17,7 @@ def admin_menu_kb() -> InlineKeyboardMarkup:
     builder.button(text="🛍 Products", callback_data=AdminCb(action="products"))
     builder.button(text="🏬 Warehouse", callback_data=AdminCb(action="wh"))
     builder.button(text="🚚 Couriers", callback_data=AdminCb(action="couriers"))
+    builder.button(text="🎟 Promo codes", callback_data=AdminCb(action="promos"))
     builder.button(text="🗂 Categories", callback_data=AdminCb(action="categories"))
     builder.button(text="➕ Add product", callback_data=AdminCb(action="prod_add"))
     builder.adjust(2)
@@ -144,4 +145,36 @@ def reports_kb(current: str) -> InlineKeyboardMarkup:
         )
     builder.button(text="⬅️ Admin menu", callback_data=AdminCb(action="menu"))
     builder.adjust(3, 1)
+    return builder.as_markup()
+
+
+
+def promos_admin_kb(rows) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for promo, _uses in rows:
+        icon = "✅" if promo.is_active else "🚫"
+        builder.button(
+            text=f"{icon} {promo.code}",
+            callback_data=AdminCb(action="promo_toggle", id=promo.id),
+        )
+    builder.button(text="➕ New promo code", callback_data=AdminCb(action="promo_new"))
+    builder.button(text="⬅️ Admin menu", callback_data=AdminCb(action="menu"))
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def promo_kind_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="% Percent", callback_data=AdminCb(action="pk_percent"))
+    builder.button(text="💵 Fixed amount", callback_data=AdminCb(action="pk_fixed"))
+    builder.button(text="❌ Cancel", callback_data=AdminCb(action="cancel"))
+    builder.adjust(2, 1)
+    return builder.as_markup()
+
+
+def promo_confirm_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Create promo code", callback_data=AdminCb(action="promo_save"))
+    builder.button(text="❌ Cancel", callback_data=AdminCb(action="cancel"))
+    builder.adjust(1)
     return builder.as_markup()

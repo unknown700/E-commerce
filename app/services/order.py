@@ -9,6 +9,7 @@ from app.repositories.inventory import InventoryRepository
 from app.repositories.order import OrderRepository
 from app.repositories.product import ProductRepository
 from app.repositories.user import UserRepository
+from app.services.promo import PromoService
 
 ACTIVE_STATUSES = ["new", "confirmed", "preparing", "ready", "on_the_way"]
 COURIER_STATUSES = ["new", "confirmed", "preparing", "on_the_way"]
@@ -44,6 +45,9 @@ class OrderService:
         self.orders = OrderRepository(session)
         self.inventory = InventoryRepository(session)
         self.users = UserRepository(session)
+        self.promos = PromoService(session)
+
+        
 
     async def create_order(
         self,
@@ -73,6 +77,20 @@ class OrderService:
                     f"Not enough stock for {product.name} (available: {product.stock})."
                 )
 
+        subtotal = sum(
+            (by_id[item.product_id].price * item.quantity for item in cart_items),
+            Decimal("0"),
+        )
+        # the promo row is locked, so two orders cannot use the last "use" at once
+        promo, discount, promo_error = await self.promos.cart_discount(
+            user_id, subtotal, lock=True
+        )
+        if promo is not None and promo_error:
+            raise OrderError(
+                f"Promo code {promo.code} is not valid: {promo_error}. "
+                "Remove it in your cart and try again."
+            )
+
         # 2) create the order, decrease stock, remember low-stock products
         order = Order(
             user_id=user_id,
@@ -83,6 +101,9 @@ class OrderService:
             address=address,
             latitude=latitude,
             longitude=longitude,
+            discount=discount,
+            promo_code=promo.code if promo else None,
+            promo_code_id=promo.id if promo else None,
             total=Decimal("0"),
         )
         total = Decimal("0")
@@ -95,7 +116,6 @@ class OrderService:
             product.stock -= item.quantity
             total += product.price * item.quantity
 
-            # alert only when the stock crosses the threshold (no spam on every order)
             crossed = old_stock > threshold >= product.stock
             sold_out = product.stock == 0 and old_stock > 0
             if crossed or sold_out:
@@ -109,11 +129,11 @@ class OrderService:
                     quantity=item.quantity,
                 )
             )
-        order.total = total
+        order.total = total - discount  # the amount the customer pays
 
         await self.orders.add(order)  # order.id is known after this
 
-        # 3) write the stock history, clear the cart
+        # 3) write the stock history, clear the cart and the applied promo
         for item in cart_items:
             product = by_id[item.product_id]
             await self.inventory.add_movement(
@@ -125,6 +145,7 @@ class OrderService:
                 user_id=user_id,
             )
         await self.cart.clear(user_id)
+        await self.promos.remove(user_id)
         return order, low_stock
 
     async def get_order(self, order_id: int) -> Order | None:

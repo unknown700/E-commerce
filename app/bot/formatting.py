@@ -72,7 +72,14 @@ def format_order_details(order, customer=None, courier=None) -> str:
         lines.append(
             f"• {escape(item.product_name)} × {item.quantity} = {format_price(subtotal)}"
         )
-    lines.append(f"\n<b>Total: {format_price(order.total)}</b>")
+    if order.discount and order.discount > 0:
+        lines.append(f"\nSubtotal: {format_price(order.total + order.discount)}")
+        lines.append(
+            f"🎟 Promo {escape(order.promo_code or '')}: -{format_price(order.discount)}"
+        )
+        lines.append(f"<b>Total: {format_price(order.total)}</b>")
+    else:
+        lines.append(f"\n<b>Total: {format_price(order.total)}</b>")
     lines.append("Payment: 💵 Cash")
     return "\n".join(lines)
 
@@ -296,3 +303,27 @@ def format_movements(rows) -> str:
         )
     legend = "REC receipt · SAL sale · CAN cancelled order · ADJ manual change"
     return "📜 <b>Movement history</b> (latest)\n" + _table(table) + f"\n<i>{legend}</i>"
+
+
+
+def format_promos(rows) -> str:
+    if not rows:
+        return "🎟 <b>Promo codes</b>\nNo promo codes yet."
+    tz = ZoneInfo(settings.timezone)
+    table = [f"{'Code':<12} {'Discount':>9} {'Used':>7} {'Until':>5}", "-" * 36]
+    for promo, uses in rows:
+        discount = (
+            f"{promo.value:.0f}%" if promo.kind == "percent" else _amount(promo.value)
+        )
+        used = f"{uses}/{promo.max_uses}" if promo.max_uses else str(uses)
+        until = (
+            promo.expires_at.astimezone(tz).strftime("%d.%m")
+            if promo.expires_at
+            else "-"
+        )
+        table.append(f"{_cut(promo.code, 12):<12} {discount:>9} {used:>7} {until:>5}")
+    return (
+        "🎟 <b>Promo codes</b>\n"
+        + _table(table)
+        + "\n<i>Tap a code below to turn it on ✅ or off 🚫.</i>"
+    )

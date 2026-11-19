@@ -13,6 +13,7 @@ from app.bot.keyboards.cart import CartCb, cart_kb
 from app.database.models.user import User
 from app.services.cart import CartService
 from app.services.user import UserService
+from app.services.promo import PromoService
 
 router = Router()
 
@@ -29,19 +30,35 @@ async def get_user(tg_user: TgUser, session: AsyncSession) -> User:
 async def render_cart(
     user_id: int, session: AsyncSession
 ) -> tuple[str, InlineKeyboardMarkup | None]:
-    items, total = await CartService(session).get_cart(user_id)
+    items, subtotal = await CartService(session).get_cart(user_id)
     if not items:
         return "Your cart is empty.", None
 
+    promo, discount, error = await PromoService(session).cart_discount(
+        user_id, subtotal
+    )
+
     lines = ["🛒 <b>Your cart</b>\n"]
     for item in items:
-        subtotal = item.product.price * item.quantity
+        line_total = item.product.price * item.quantity
         lines.append(
             f"{escape(item.product.name)}\n"
-            f"   {item.quantity} × {format_price(item.product.price)} = {format_price(subtotal)}"
+            f"   {item.quantity} × {format_price(item.product.price)} = {format_price(line_total)}"
         )
-    lines.append(f"\n<b>Total: {format_price(total)}</b>")
-    return "\n".join(lines), cart_kb(items)
+
+    if promo is None:
+        lines.append(f"\n<b>Total: {format_price(subtotal)}</b>")
+    else:
+        lines.append(f"\nSubtotal: {format_price(subtotal)}")
+        if error:
+            lines.append(f"⚠️ Promo <b>{escape(promo.code)}</b> is not valid: {error}")
+            payable = subtotal
+        else:
+            lines.append(f"🎟 Promo <b>{escape(promo.code)}</b>: -{format_price(discount)}")
+            payable = subtotal - discount
+        lines.append(f"<b>Total: {format_price(payable)}</b>")
+
+    return "\n".join(lines), cart_kb(items, has_promo=promo is not None)
 
 
 @router.message(Command("cart"))

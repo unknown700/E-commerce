@@ -10,7 +10,7 @@ class CartCb(CallbackData, prefix="cart"):
     product_id: int = 0
 
 
-def cart_kb(items) -> InlineKeyboardMarkup:
+def cart_kb(items, has_promo: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for item in items:
         builder.row(
@@ -30,6 +30,19 @@ def cart_kb(items) -> InlineKeyboardMarkup:
                 text="❌",
                 callback_data=CartCb(action="del", product_id=item.product_id).pack(),
             ),
+        )
+    if has_promo:
+        builder.row(
+            InlineKeyboardButton(
+                text="❌ Remove promo code",
+                callback_data=CartCb(action="promo_remove").pack(),
+            )
+        )
+    else:
+        builder.row(
+            InlineKeyboardButton(
+                text="🎟 Promo code", callback_data=CartCb(action="promo").pack()
+            )
         )
     builder.row(
         InlineKeyboardButton(

@@ -29,6 +29,8 @@ from app.database.models.user import User
 from app.services.cart import CartService
 from app.services.order import OrderError, OrderService
 from app.bot.notifications import notify_low_stock
+from decimal import Decimal
+from app.services.promo import PromoService
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -37,14 +39,17 @@ DELIVERY_LABELS = {"delivery": "🚚 Delivery", "pickup": "🏪 Pickup"}
 PHONE_RE = re.compile(r"\+?\d[\d\s\-()]{7,18}")
 
 
-def build_summary(data: dict, items, total) -> str:
+def build_summary(data: dict, items, subtotal, promo=None, discount=Decimal("0")) -> str:
     lines = ["📋 <b>Order summary</b>\n"]
     for item in items:
-        subtotal = item.product.price * item.quantity
+        line_total = item.product.price * item.quantity
         lines.append(
-            f"• {escape(item.product.name)} × {item.quantity} = {format_price(subtotal)}"
+            f"• {escape(item.product.name)} × {item.quantity} = {format_price(line_total)}"
         )
-    lines.append(f"\n<b>Total: {format_price(total)}</b>\n")
+    if promo is not None:
+        lines.append(f"\nSubtotal: {format_price(subtotal)}")
+        lines.append(f"🎟 Promo {escape(promo.code)}: -{format_price(discount)}")
+    lines.append(f"\n<b>Total: {format_price(subtotal - discount)}</b>\n")
     lines.append(f"Receive: {DELIVERY_LABELS[data['delivery_type']]}")
     if data.get("address"):
         lines.append(f"Address: {escape(data['address'])}")
@@ -69,6 +74,12 @@ async def notify_admins(bot: Bot, order: Order, customer: User) -> None:
         lines.append(
             f"• {escape(item.product_name)} × {item.quantity} = {format_price(subtotal)}"
         )
+
+    if order.discount and order.discount > 0:
+        lines.append(
+            f"\n🎟 Promo {escape(order.promo_code or '')}: -{format_price(order.discount)}"
+        )
+        
     lines.append(f"\n<b>Total: {format_price(order.total)}</b>")
     lines.append("Payment: 💵 Cash")
     text = "\n".join(lines)
@@ -93,15 +104,27 @@ async def ask_phone(message: Message, state: FSMContext) -> None:
 async def show_summary(message: Message, state: FSMContext, session: AsyncSession) -> None:
     data = await state.get_data()
     user = await get_user(message.from_user, session)
-    items, total = await CartService(session).get_cart(user.id)
+    items, subtotal = await CartService(session).get_cart(user.id)
     if not items:
         await state.clear()
         await message.answer("Your cart is empty.", reply_markup=main_menu_kb())
         return
 
+    promo, discount, error = await PromoService(session).cart_discount(user.id, subtotal)
+    if promo is not None and error:
+        await state.clear()
+        await message.answer(
+            f"⚠️ Promo code {escape(promo.code)} is not valid: {error}.\n"
+            "Open your cart, remove it and try again.",
+            reply_markup=main_menu_kb(),
+        )
+        return
+
     await state.set_state(Checkout.confirm)
     await message.answer("Thanks! Please review your order.", reply_markup=ReplyKeyboardRemove())
-    await message.answer(build_summary(data, items, total), reply_markup=confirm_kb())
+    await message.answer(
+        build_summary(data, items, subtotal, promo, discount), reply_markup=confirm_kb()
+    )
 
 
 # ---- cancel (must be registered before the other state handlers) ----
