@@ -1,9 +1,13 @@
+from html import escape
+
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bot.keyboards.language import language_kb
 from app.bot.keyboards.main_menu import main_menu_kb
+from app.i18n import detect_language, t
 from app.services.user import UserService
 
 router = Router()
@@ -20,12 +24,12 @@ async def start(message: Message, session: AsyncSession):
     )
 
     if created:
-        await message.answer(
-            f"Welcome, {user.full_name}! You are now registered.",
-            reply_markup=main_menu_kb(),
-        )
-    else:
-        await message.answer(
-            f"Welcome back, {user.full_name}!",
-            reply_markup=main_menu_kb(),
-        )
+        
+        await service.set_language(user.id, detect_language(tg_user.language_code))
+        await message.answer(t("en", "lang.choose"), reply_markup=language_kb())
+        return
+
+    await message.answer(
+        t(user.language, "start.welcome_back", name=escape(user.full_name)),
+        reply_markup=main_menu_kb(user.language),
+    )

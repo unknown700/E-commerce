@@ -8,12 +8,12 @@ from app.bot.handlers.cart import get_user
 from app.bot.keyboards.catalog import NavCb
 from app.bot.keyboards.orders import MyOrderCb, my_order_detail_kb, my_orders_kb
 from app.services.order import OrderService
-
+from app.i18n import all_texts
 router = Router()
 
 
 @router.message(Command("orders"))
-@router.message(F.text == "📦 My orders")
+@router.message(F.text.in_(all_texts("menu.orders")))
 async def my_orders(message: Message, session: AsyncSession):
     user = await get_user(message.from_user, session)
     orders = await OrderService(session).get_user_orders(user.id)

@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.user import User
 from app.repositories.user import UserRepository
+from app.i18n import LANGUAGES
 
 
 class UserService:
@@ -20,4 +21,9 @@ class UserService:
 
     async def get(self, user_id: int) -> User | None:
         return await self.repo.get_by_id(user_id)
-    
+
+
+    async def set_language(self, user_id: int, language: str) -> None:
+        user = await self.repo.get_by_id(user_id)
+        if user is not None and language in LANGUAGES:
+            user.language = language

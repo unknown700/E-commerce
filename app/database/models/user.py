@@ -16,6 +16,9 @@ class User(Base):
     phone: Mapped[str | None] = mapped_column(String(20))
     role: Mapped[str] = mapped_column(String(16), default="customer")  # customer / courier / admin
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    language: Mapped[str] = mapped_column(
+        String(2), default="en", server_default="en"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

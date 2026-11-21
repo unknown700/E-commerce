@@ -3,14 +3,14 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.bot.keyboards.catalog import NavCb, ProductCb
-
+from app.i18n import t
 
 class CartCb(CallbackData, prefix="cart"):
     action: str  # inc / dec / del / clear
     product_id: int = 0
 
 
-def cart_kb(items, has_promo: bool = False) -> InlineKeyboardMarkup:
+def cart_kb(items, has_promo: bool = False, lang: str = "en") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for item in items:
         builder.row(
@@ -31,32 +31,29 @@ def cart_kb(items, has_promo: bool = False) -> InlineKeyboardMarkup:
                 callback_data=CartCb(action="del", product_id=item.product_id).pack(),
             ),
         )
-    if has_promo:
-        builder.row(
-            InlineKeyboardButton(
-                text="❌ Remove promo code",
-                callback_data=CartCb(action="promo_remove").pack(),
-            )
-        )
-    else:
-        builder.row(
-            InlineKeyboardButton(
-                text="🎟 Promo code", callback_data=CartCb(action="promo").pack()
-            )
-        )
+    promo_text, promo_action = (
+        (t(lang, "btn.promo_remove"), "promo_remove")
+        if has_promo
+        else (t(lang, "btn.promo"), "promo")
+    )
     builder.row(
         InlineKeyboardButton(
-            text="✅ Checkout", callback_data=CartCb(action="checkout").pack()
+            text=promo_text, callback_data=CartCb(action=promo_action).pack()
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="🗑 Clear cart", callback_data=CartCb(action="clear").pack()
+            text=t(lang, "btn.checkout"), callback_data=CartCb(action="checkout").pack()
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="🛍 Continue shopping", callback_data=NavCb(to="categories").pack()
+            text=t(lang, "btn.clear_cart"), callback_data=CartCb(action="clear").pack()
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=t(lang, "btn.continue"), callback_data=NavCb(to="categories").pack()
         )
     )
     return builder.as_markup()

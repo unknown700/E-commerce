@@ -17,6 +17,7 @@ from app.bot.handlers import (
     admin_promos,
     admin_reports,
     admin_warehouse,
+    language,
     cart,
     catalog,
     checkout,
@@ -30,6 +31,7 @@ from app.bot.middlewares.db import DbSessionMiddleware
 from app.config import settings
 from app.database.session import async_session, engine
 from app.scheduler.jobs import send_daily_report
+from app.bot.middlewares.language import LanguageMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,8 +50,9 @@ async def main():
     )
     dp = Dispatcher()
     dp.update.middleware(DbSessionMiddleware(async_session))
-
+    dp.update.middleware(LanguageMiddleware())
     dp.include_router(start.router)
+    dp.include_router(language.router)
     dp.include_router(catalog.router)
     dp.include_router(cart.router)
     dp.include_router(checkout.router)
