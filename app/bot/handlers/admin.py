@@ -23,6 +23,8 @@ from app.services.order import (
 from app.bot.keyboards.couriers import courier_open_kb
 from app.services.user import UserService
 from app.bot.keyboards.admin import admin_menu_kb
+from html import escape
+from app.services.payment import PaymentService
 
 
 logger = logging.getLogger(__name__)
@@ -119,4 +121,17 @@ async def change_status(
             )
         except TelegramAPIError:
             logger.warning("Could not notify courier %s", courier.telegram_id)
+
+
+
+    if order.status == "cancelled" and order.payment_method == "card":
+        payment = await PaymentService(session).get_by_order(order.id)
+        charge = payment.provider_charge_id if payment else "unknown"
+        await call.message.answer(
+            f"⚠️ Order #{order.id} was paid by card. Refund it in your payment "
+            "provider dashboard.\n"
+            f"Provider charge ID: <code>{escape(charge or 'unknown')}</code>"
+        )
+
+
     await call.answer("Status updated")

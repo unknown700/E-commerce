@@ -26,9 +26,11 @@ def delivery_type_kb() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def confirm_kb() -> InlineKeyboardMarkup:
+def confirm_kb(online: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Confirm order", callback_data=ConfirmCb(action="yes"))
+    builder.button(text="💵 Pay cash on delivery", callback_data=ConfirmCb(action="yes"))
+    if online:
+        builder.button(text="💳 Pay online", callback_data=ConfirmCb(action="card"))
     builder.button(text=CANCEL_TEXT, callback_data=ConfirmCb(action="no"))
     builder.adjust(1)
     return builder.as_markup()
@@ -52,3 +54,5 @@ def phone_kb() -> ReplyKeyboardMarkup:
         ],
         resize_keyboard=True,
     )
+
+

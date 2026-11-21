@@ -31,6 +31,7 @@ from app.services.order import OrderError, OrderService
 from app.bot.notifications import notify_low_stock
 from decimal import Decimal
 from app.services.promo import PromoService
+from app.bot.formatting import PAYMENT_LABELS
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -54,7 +55,7 @@ def build_summary(data: dict, items, subtotal, promo=None, discount=Decimal("0")
     if data.get("address"):
         lines.append(f"Address: {escape(data['address'])}")
     lines.append(f"Phone: {escape(data['phone'])}")
-    lines.append("Payment: 💵 Cash")
+    lines.append("\nChoose how you want to pay:")
     return "\n".join(lines)
 
 
@@ -81,7 +82,7 @@ async def notify_admins(bot: Bot, order: Order, customer: User) -> None:
         )
         
     lines.append(f"\n<b>Total: {format_price(order.total)}</b>")
-    lines.append("Payment: 💵 Cash")
+    lines.append(f"Payment: {PAYMENT_LABELS.get(order.payment_method, order.payment_method)}")
     text = "\n".join(lines)
 
     for admin_id in settings.admin_id_list:
@@ -123,7 +124,8 @@ async def show_summary(message: Message, state: FSMContext, session: AsyncSessio
     await state.set_state(Checkout.confirm)
     await message.answer("Thanks! Please review your order.", reply_markup=ReplyKeyboardRemove())
     await message.answer(
-        build_summary(data, items, subtotal, promo, discount), reply_markup=confirm_kb()
+        build_summary(data, items, subtotal, promo, discount),
+        reply_markup=confirm_kb(online=settings.card_payments_enabled),
     )
 
 

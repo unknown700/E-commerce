@@ -57,6 +57,8 @@ class OrderService:
         address: str | None,
         latitude: float | None,
         longitude: float | None,
+        payment_method: str = "cash",
+        expected_total: Decimal | None = None,
     ) -> tuple[Order, list[tuple[str, int]]]:
         cart_items = await self.cart.get_items(user_id)
         if not cart_items:
@@ -91,12 +93,15 @@ class OrderService:
                 "Remove it in your cart and try again."
             )
 
+        if expected_total is not None and subtotal - discount != expected_total:
+            raise OrderError("Your cart changed after the payment started.")    
+
         # 2) create the order, decrease stock, remember low-stock products
         order = Order(
             user_id=user_id,
             status="new",
             delivery_type=delivery_type,
-            payment_method="cash",
+            payment_method=payment_method,
             phone=phone,
             address=address,
             latitude=latitude,

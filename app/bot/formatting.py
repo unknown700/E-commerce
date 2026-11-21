@@ -6,6 +6,7 @@ from app.config import settings
 
 
 DELIVERY_LABELS = {"delivery": "🚚 Delivery", "pickup": "🏪 Pickup"}
+PAYMENT_LABELS = {"cash": "💵 Cash on delivery", "card": "💳 Card (paid online)"}
 
 STATUS_LABELS = {
     "new": "🆕 New",
@@ -83,7 +84,7 @@ def format_order_details(order, customer=None, courier=None) -> str:
         lines.append(f"<b>Total: {format_price(order.total)}</b>")
     else:
         lines.append(f"\n<b>Total: {format_price(order.total)}</b>")
-    lines.append("Payment: 💵 Cash")
+    lines.append(f"Payment: {PAYMENT_LABELS.get(order.payment_method, order.payment_method)}")
     return "\n".join(lines)
 
 
@@ -96,11 +97,11 @@ COURIER_HINTS = {
 
 
 def format_courier_order(order, customer=None) -> str:
-    lines = [
-        format_order_details(order, customer),
-        "",
-        f"💵 <b>Collect cash: {format_price(order.total)}</b>",
-    ]
+    if order.payment_method == "card":
+        pay_line = "✅ <b>Paid online. Do not collect cash.</b>"
+    else:
+        pay_line = f"💵 <b>Collect cash: {format_price(order.total)}</b>"
+    lines = [format_order_details(order, customer), "", pay_line]
     hint = COURIER_HINTS.get(order.status)
     if hint:
         lines.append(hint)
@@ -329,4 +330,24 @@ def format_promos(rows) -> str:
         "🎟 <b>Promo codes</b>\n"
         + _table(table)
         + "\n<i>Tap a code below to turn it on ✅ or off 🚫.</i>"
+    )
+
+
+
+def format_payments(payments) -> str:
+    if not payments:
+        return "💳 <b>Payments</b>\nNo online payments yet."
+    tz = ZoneInfo(settings.timezone)
+    names = {"paid": "paid", "pending": "pending", "needs_refund": "REFUND"}
+    rows = [f"{'Date':<11} {'Order':>6} {'Amount':>10} {'Status':<8}", "-" * 38]
+    for payment in payments:
+        when = payment.created_at.astimezone(tz).strftime("%d.%m %H:%M")
+        order = f"#{payment.order_id}" if payment.order_id else "-"
+        status = names.get(payment.status, payment.status)
+        rows.append(f"{when:<11} {order:>6} {_amount(payment.amount):>10} {status:<8}")
+    return (
+        "💳 <b>Payments</b> (latest 15, USD)\n"
+        + _table(rows)
+        + "\n<i>pending = invoice sent, not paid yet. REFUND = paid, but the order "
+        "could not be created: refund it in your payment provider dashboard.</i>"
     )

@@ -1,6 +1,7 @@
 from app.database.models.cart_item import CartItem
 from app.database.models.category import Category
 from app.database.models.order import Order, OrderItem
+from app.database.models.payment import Payment
 from app.database.models.product import Product
 from app.database.models.promo import CartPromo, PromoCode
 from app.database.models.stock_movement import StockMovement
@@ -16,4 +17,5 @@ __all__ = [
     "StockMovement",
     "PromoCode",
     "CartPromo",
+    "Payment",
 ]

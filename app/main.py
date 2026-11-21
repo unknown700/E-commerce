@@ -12,6 +12,7 @@ from app.bot.handlers import (
     admin,
     admin_catalog,
     admin_couriers,
+    admin_payments,
     admin_products,
     admin_promos,
     admin_reports,
@@ -21,6 +22,7 @@ from app.bot.handlers import (
     checkout,
     courier,
     orders,
+    payments,
     promo,
     start,
 )
@@ -61,6 +63,8 @@ async def main():
     dp.include_router(courier.router)
     dp.include_router(admin_promos.router)
     dp.include_router(promo.router)
+    dp.include_router(payments.router)
+    dp.include_router(admin_payments.router)
 
     scheduler = AsyncIOScheduler(timezone=settings.timezone)
     scheduler.add_job(
