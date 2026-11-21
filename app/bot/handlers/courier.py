@@ -19,6 +19,7 @@ from app.bot.keyboards.couriers import (
 from app.bot.notifications import send_to_admins
 from app.services.order import OrderError, OrderService
 from app.services.user import UserService
+from app.i18n import t
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -92,7 +93,8 @@ async def courier_action(
 
     try:
         await bot.send_message(
-            customer.telegram_id, STATUS_MESSAGES[order.status].format(id=order.id)
+            customer.telegram_id,
+            t(customer.language, f"notify.{order.status}", id=order.id),
         )
     except Exception:
         logger.warning("Could not notify customer %s", customer.telegram_id)

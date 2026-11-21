@@ -25,6 +25,7 @@ from app.services.user import UserService
 from app.bot.keyboards.admin import admin_menu_kb
 from html import escape
 from app.services.payment import PaymentService
+from app.i18n import t
 
 
 logger = logging.getLogger(__name__)
@@ -99,7 +100,8 @@ async def change_status(
 
     try:
         await bot.send_message(
-            customer.telegram_id, STATUS_MESSAGES[order.status].format(id=order.id)
+            customer.telegram_id,
+            t(customer.language, f"notify.{order.status}", id=order.id),
         )
     except TelegramAPIError:
         logger.warning("Could not notify customer %s", customer.telegram_id)

@@ -3,6 +3,7 @@ from decimal import Decimal
 from html import escape
 from zoneinfo import ZoneInfo
 from app.config import settings
+from app.i18n import t
 
 
 DELIVERY_LABELS = {"delivery": "🚚 Delivery", "pickup": "🏪 Pickup"}
@@ -17,6 +18,9 @@ STATUS_LABELS = {
     "delivered": "🎉 Delivered",
     "cancelled": "❌ Cancelled",
 }
+
+def status_label(lang: str, status: str) -> str:
+    return t(lang, f"status.{status}")
 
 STATUS_MESSAGES = {
     "confirmed": "✅ Your order #{id} has been confirmed.",
@@ -44,48 +48,62 @@ def format_price(value) -> str:
     return f"${value:,.2f}"
 
 
-def format_order_details(order, customer=None, courier=None) -> str:
+def format_order_details(order, customer=None, courier=None, lang: str = "en") -> str:
     created = order.created_at.astimezone().strftime("%d.%m.%Y %H:%M")
     lines = [
-        f"📦 <b>Order #{order.id}</b>",
-        f"Status: {STATUS_LABELS[order.status]}",
-        f"Date: {created}\n",
+        t(lang, "order.title", id=order.id),
+        t(lang, "order.status", status=status_label(lang, order.status)),
+        t(lang, "order.date", date=created) + "\n",
     ]
     if customer is not None:
         name = escape(customer.full_name)
         if customer.username:
             name += f" (@{escape(customer.username)})"
-        lines.append(f"Customer: {name}")
-    lines.append(f"Phone: {escape(order.phone)}")
-    lines.append(f"Receive: {DELIVERY_LABELS[order.delivery_type]}")
+        lines.append(t(lang, "order.customer", name=name))
+    lines.append(t(lang, "order.phone", phone=escape(order.phone)))
+    lines.append(
+        t(lang, "order.receive", label=t(lang, f"btn.{order.delivery_type}"))
+    )
     if order.address:
-        lines.append(f"Address: {escape(order.address)}")
+        lines.append(t(lang, "order.address", address=escape(order.address)))
     if order.latitude is not None and order.longitude is not None:
         lines.append(
-            f'📍 <a href="https://maps.google.com/?q={order.latitude},{order.longitude}">Open on map</a>'
+            f'📍 <a href="https://maps.google.com/?q={order.latitude},{order.longitude}">'
+            f'{t(lang, "order.map")}</a>'
         )
     if courier is not None:
         courier_name = escape(courier.full_name)
         if courier.username:
             courier_name += f" (@{escape(courier.username)})"
-        lines.append(f"🚚 Courier: {courier_name}")
+        lines.append(t(lang, "order.courier", name=courier_name))
 
-    lines.append("\nItems:")
+    lines.append("\n" + t(lang, "order.items"))
     for item in order.items:
         subtotal = item.unit_price * item.quantity
         lines.append(
             f"• {escape(item.product_name)} × {item.quantity} = {format_price(subtotal)}"
         )
+
     if order.discount and order.discount > 0:
-        lines.append(f"\nSubtotal: {format_price(order.total + order.discount)}")
         lines.append(
-            f"🎟 Promo {escape(order.promo_code or '')}: -{format_price(order.discount)}"
+            "\n" + t(lang, "cart.subtotal", amount=format_price(order.total + order.discount))
         )
-        lines.append(f"<b>Total: {format_price(order.total)}</b>")
+        lines.append(
+            t(
+                lang,
+                "order.promo",
+                code=escape(order.promo_code or ""),
+                amount=format_price(order.discount),
+            )
+        )
+        lines.append(t(lang, "cart.total", amount=format_price(order.total)))
     else:
-        lines.append(f"\n<b>Total: {format_price(order.total)}</b>")
-    lines.append(f"Payment: {PAYMENT_LABELS.get(order.payment_method, order.payment_method)}")
+        lines.append("\n" + t(lang, "cart.total", amount=format_price(order.total)))
+    lines.append(
+        t(lang, "order.payment", method=t(lang, f"pay.{order.payment_method}"))
+    )
     return "\n".join(lines)
+
 
 
 COURIER_HINTS = {

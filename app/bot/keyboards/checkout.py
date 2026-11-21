@@ -1,12 +1,8 @@
 from aiogram.filters.callback_data import CallbackData
-from aiogram.types import (
-    InlineKeyboardMarkup,
-    KeyboardButton,
-    ReplyKeyboardMarkup,
-)
+from aiogram.types import InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-CANCEL_TEXT = "❌ Cancel"
+from app.i18n import t
 
 
 class DeliveryCb(CallbackData, prefix="deliv"):
@@ -14,45 +10,61 @@ class DeliveryCb(CallbackData, prefix="deliv"):
 
 
 class ConfirmCb(CallbackData, prefix="confirm"):
-    action: str  # yes / no
+    action: str  # yes / card / no
 
 
-def delivery_type_kb() -> InlineKeyboardMarkup:
+class MockPayCb(CallbackData, prefix="mockpay"):
+    action: str  # ok / fail
+    id: int
+
+
+def delivery_type_kb(lang: str = "en") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="🚚 Delivery", callback_data=DeliveryCb(kind="delivery"))
-    builder.button(text="🏪 Pickup", callback_data=DeliveryCb(kind="pickup"))
-    builder.button(text=CANCEL_TEXT, callback_data=ConfirmCb(action="no"))
+    builder.button(text=t(lang, "btn.delivery"), callback_data=DeliveryCb(kind="delivery"))
+    builder.button(text=t(lang, "btn.pickup"), callback_data=DeliveryCb(kind="pickup"))
+    builder.button(text=t(lang, "btn.cancel"), callback_data=ConfirmCb(action="no"))
     builder.adjust(2, 1)
     return builder.as_markup()
 
 
-def confirm_kb(online: bool = False) -> InlineKeyboardMarkup:
+def confirm_kb(online: bool = False, lang: str = "en") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="💵 Pay cash on delivery", callback_data=ConfirmCb(action="yes"))
+    builder.button(text=t(lang, "btn.pay_cash"), callback_data=ConfirmCb(action="yes"))
     if online:
-        builder.button(text="💳 Pay online", callback_data=ConfirmCb(action="card"))
-    builder.button(text=CANCEL_TEXT, callback_data=ConfirmCb(action="no"))
+        builder.button(text=t(lang, "btn.pay_online"), callback_data=ConfirmCb(action="card"))
+    builder.button(text=t(lang, "btn.cancel"), callback_data=ConfirmCb(action="no"))
     builder.adjust(1)
     return builder.as_markup()
 
 
-def location_kb() -> ReplyKeyboardMarkup:
+def location_kb(lang: str = "en") -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📍 Send location", request_location=True)],
-            [KeyboardButton(text=CANCEL_TEXT)],
+            [KeyboardButton(text=t(lang, "btn.send_location"), request_location=True)],
+            [KeyboardButton(text=t(lang, "btn.cancel"))],
         ],
         resize_keyboard=True,
     )
 
 
-def phone_kb() -> ReplyKeyboardMarkup:
+def phone_kb(lang: str = "en") -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📱 Share phone number", request_contact=True)],
-            [KeyboardButton(text=CANCEL_TEXT)],
+            [KeyboardButton(text=t(lang, "btn.share_phone"), request_contact=True)],
+            [KeyboardButton(text=t(lang, "btn.cancel"))],
         ],
         resize_keyboard=True,
     )
 
 
+def mock_pay_kb(payment_id: int, lang: str = "en") -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text=t(lang, "btn.sim_ok"), callback_data=MockPayCb(action="ok", id=payment_id)
+    )
+    builder.button(
+        text=t(lang, "btn.sim_cancel"),
+        callback_data=MockPayCb(action="fail", id=payment_id),
+    )
+    builder.adjust(1)
+    return builder.as_markup()
