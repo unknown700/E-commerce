@@ -54,7 +54,10 @@ async def render_cart(
         lines.append(t(lang, "cart.subtotal", amount=format_price(subtotal)))
         if error:
             lines.append(
-                t(lang, "cart.promo_invalid", code=escape(promo.code), reason=error)
+                t(lang,
+                    "cart.promo_invalid",
+                    code=escape(promo.code),
+                    reason=error.text(lang),)
             )
             payable = subtotal
         else:

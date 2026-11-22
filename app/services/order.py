@@ -10,6 +10,7 @@ from app.repositories.order import OrderRepository
 from app.repositories.product import ProductRepository
 from app.repositories.user import UserRepository
 from app.services.promo import PromoService
+from app.errors import AppError
 
 ACTIVE_STATUSES = ["new", "confirmed", "preparing", "ready", "on_the_way"]
 COURIER_STATUSES = ["new", "confirmed", "preparing", "on_the_way"]
@@ -20,7 +21,7 @@ def can_assign_courier(order: Order) -> bool:
     return order.delivery_type == "delivery" and order.status in ASSIGNABLE_STATUSES
 
 
-class OrderError(Exception):
+class OrderError(AppError):
     pass
 
 
@@ -62,7 +63,7 @@ class OrderService:
     ) -> tuple[Order, list[tuple[str, int]]]:
         cart_items = await self.cart.get_items(user_id)
         if not cart_items:
-            raise OrderError("Your cart is empty.")
+            raise OrderError("err.cart_empty")
 
         products = await self.products.get_for_update(
             [item.product_id for item in cart_items]
@@ -73,28 +74,23 @@ class OrderService:
         for item in cart_items:
             product = by_id.get(item.product_id)
             if product is None or not product.is_active:
-                raise OrderError(f"{item.product.name} is no longer available.")
+                raise OrderError("err.unavailable", name=item.product.name)
             if item.quantity > product.stock:
-                raise OrderError(
-                    f"Not enough stock for {product.name} (available: {product.stock})."
-                )
-
+                raise OrderError("err.no_stock", name=product.name, available=product.stock)
         subtotal = sum(
             (by_id[item.product_id].price * item.quantity for item in cart_items),
             Decimal("0"),
         )
+        
         # the promo row is locked, so two orders cannot use the last "use" at once
         promo, discount, promo_error = await self.promos.cart_discount(
             user_id, subtotal, lock=True
         )
         if promo is not None and promo_error:
-            raise OrderError(
-                f"Promo code {promo.code} is not valid: {promo_error}. "
-                "Remove it in your cart and try again."
-            )
+            raise OrderError("err.promo_invalid", code=promo.code, reason=promo_error)
 
         if expected_total is not None and subtotal - discount != expected_total:
-            raise OrderError("Your cart changed after the payment started.")    
+            raise OrderError("err.cart_changed")  
 
         # 2) create the order, decrease stock, remember low-stock products
         order = Order(

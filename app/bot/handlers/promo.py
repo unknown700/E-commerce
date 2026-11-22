@@ -61,7 +61,7 @@ async def promo_code(
             user.id, message.text, subtotal
         )
     except PromoError as error:
-        await message.answer(t(lang, "promo.try_again", error=error))
+        await message.answer(t(lang, "promo.try_again", error=error.text(lang)))
         return
 
     await state.clear()

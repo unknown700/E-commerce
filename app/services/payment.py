@@ -8,6 +8,8 @@ from app.config import settings
 from app.database.models.order import Order
 from app.database.models.payment import Payment
 from app.database.models.promo import PromoCode
+from app.errors import AppError
+from app.i18n import t
 from app.repositories.cart import CartRepository
 from app.repositories.order import OrderRepository
 from app.repositories.payment import PaymentRepository
@@ -18,7 +20,7 @@ from app.services.promo import PromoService
 MIN_CARD_AMOUNT = Decimal("1.00")
 
 
-class PaymentError(Exception):
+class PaymentError(AppError):
     pass
 
 
@@ -52,7 +54,7 @@ class PaymentResult:
     order: Order | None
     low_stock: list[tuple[str, int]]
     fresh: bool  # False when Telegram delivered the same payment twice
-    problem: str | None = None
+    problem: AppError | None = None
 
 
 class PaymentService:
@@ -67,26 +69,23 @@ class PaymentService:
     async def _quote(self, user_id: int) -> Quote:
         items = await self.cart.get_items(user_id)
         if not items:
-            raise PaymentError("Your cart is empty.")
+            raise PaymentError("err.cart_empty")
         for item in items:
             product = item.product
             if not product.is_active:
-                raise PaymentError(f"{product.name} is no longer available.")
+                raise PaymentError("err.unavailable", name=product.name)
             if item.quantity > product.stock:
                 raise PaymentError(
-                    f"Not enough stock for {product.name} (available: {product.stock})."
+                    "err.no_stock", name=product.name, available=product.stock
                 )
 
         subtotal = sum((i.product.price * i.quantity for i in items), Decimal("0"))
         promo, discount, error = await self.promos.cart_discount(user_id, subtotal)
         if promo is not None and error:
-            raise PaymentError(
-                f"Promo code {promo.code} is not valid: {error}. "
-                "Remove it in your cart and try again."
-            )
+            raise PaymentError("err.promo_invalid", code=promo.code, reason=error)
         total = subtotal - discount
         if total < MIN_CARD_AMOUNT:
-            raise PaymentError("Online payment is available for orders of at least $1.")
+            raise PaymentError("err.pay_min")
         return Quote(items, subtotal, promo, discount, total)
 
     async def start(
@@ -97,6 +96,7 @@ class PaymentService:
         address: str | None,
         latitude: float | None,
         longitude: float | None,
+        lang: str = "en",
     ) -> tuple[Payment, list[tuple[str, int]]]:
         """Saves the checkout data and returns the invoice lines (label, cents)."""
         quote = await self._quote(user_id)
@@ -114,34 +114,42 @@ class PaymentService:
             )
         )
         lines = [
-            (_label(f"{i.product.name} × {i.quantity}"), to_cents(i.product.price * i.quantity))
+            (
+                _label(f"{i.product.name} × {i.quantity}"),
+                to_cents(i.product.price * i.quantity),
+            )
             for i in quote.items
         ]
         if quote.promo is not None and quote.discount > 0:
-            lines.append((_label(f"Promo {quote.promo.code}"), -to_cents(quote.discount)))
+            lines.append(
+                (
+                    _label(t(lang, "pay.promo_line", code=quote.promo.code)),
+                    -to_cents(quote.discount),
+                )
+            )
         return payment, lines
 
     async def validate_pre_checkout(
         self, payload: str, telegram_id: int, total_amount: int, currency: str
-    ) -> str | None:
-        """Runs right before the money is taken. Returns an error text or None."""
+    ) -> PaymentError | None:
+        """Runs right before the money is taken. Returns an error or None."""
         payment_id = parse_payload(payload)
         payment = await self.payments.get_by_id(payment_id) if payment_id else None
         if payment is None or payment.status != "pending":
-            return "This payment is no longer valid. Please start checkout again."
+            return PaymentError("err.pay_invalid")
 
         user = await self.users.get_by_telegram_id(telegram_id)
         if user is None or user.id != payment.user_id:
-            return "This payment belongs to another account."
+            return PaymentError("err.pay_other_account")
         if currency != payment.currency or total_amount != to_cents(payment.amount):
-            return "The payment amount does not match your order. Please start again."
+            return PaymentError("err.pay_amount")
 
         try:
             quote = await self._quote(user.id)
         except PaymentError as error:
-            return str(error)
+            return error
         if to_cents(quote.total) != total_amount:
-            return "Your cart has changed. Please open your cart and start checkout again."
+            return PaymentError("err.pay_cart_changed")
         return None
 
     async def complete(
@@ -179,7 +187,7 @@ class PaymentService:
         if total_amount != to_cents(payment.amount):
             payment.status = "needs_refund"
             return PaymentResult(
-                payment, None, [], True, "The paid amount does not match the order."
+                payment, None, [], True, PaymentError("err.pay_paid_mismatch")
             )
 
         try:
@@ -195,11 +203,14 @@ class PaymentService:
             )
         except OrderError as error:
             payment.status = "needs_refund"
-            return PaymentResult(payment, None, [], True, str(error))
+            return PaymentResult(payment, None, [], True, error)
 
         payment.status = "paid"
         payment.order_id = order.id
         return PaymentResult(payment, order, low_stock, True)
+
+    async def get_payment(self, payment_id: int) -> Payment | None:
+        return await self.payments.get_by_id(payment_id)
 
     async def get_by_order(self, order_id: int) -> Payment | None:
         return await self.payments.get_by_order(order_id)

@@ -5,13 +5,14 @@ from decimal import ROUND_HALF_UP, Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.promo import PromoCode
+from app.errors import AppError
 from app.repositories.promo import PromoRepository
 from app.services.admin_catalog import parse_price, parse_stock
 
 ZERO = Decimal("0")
 
 
-class PromoError(Exception):
+class PromoError(AppError):
     pass
 
 
@@ -71,18 +72,20 @@ class PromoService:
 
     async def _check(
         self, promo: PromoCode, user_id: int, subtotal: Decimal
-    ) -> tuple[Decimal, str | None]:
+    ) -> tuple[Decimal, PromoError | None]:
         """Returns (discount, error). The error is None when the code can be used."""
         if not promo.is_active:
-            return ZERO, "this promo code is not active"
+            return ZERO, PromoError("promo.reason.inactive")
         if promo.expires_at is not None and promo.expires_at <= datetime.now(timezone.utc):
-            return ZERO, "this promo code has expired"
+            return ZERO, PromoError("promo.reason.expired")
         if subtotal < promo.min_order:
-            return ZERO, f"the minimum order amount is {_money(promo.min_order)} UZS"
+            return ZERO, PromoError(
+                "promo.reason.min_order", amount=_money(promo.min_order)
+            )
         if promo.max_uses is not None and await self.repo.count_uses(promo.id) >= promo.max_uses:
-            return ZERO, "this promo code has been fully used"
+            return ZERO, PromoError("promo.reason.used_up")
         if await self.repo.count_user_uses(promo.id, user_id) >= 1:
-            return ZERO, "you have already used this promo code"
+            return ZERO, PromoError("promo.reason.already_used")
         return self._discount(promo, subtotal), None
 
     # ---------- customer ----------
@@ -91,10 +94,10 @@ class PromoService:
     ) -> tuple[PromoCode, Decimal]:
         promo = await self.repo.get_by_code(code.strip().upper())
         if promo is None:
-            raise PromoError("Promo code not found.")
+            raise PromoError("promo.not_found")
         discount, error = await self._check(promo, user_id, subtotal)
         if error:
-            raise PromoError(f"Sorry, {error}.")
+            raise PromoError("promo.sorry", reason=error)
         await self.repo.set_cart_promo(user_id, promo.id)
         return promo, discount
 
@@ -103,7 +106,7 @@ class PromoService:
 
     async def cart_discount(
         self, user_id: int, subtotal: Decimal, lock: bool = False
-    ) -> tuple[PromoCode | None, Decimal, str | None]:
+    ) -> tuple[PromoCode | None, Decimal, PromoError | None]:
         """The promo applied to the cart: (promo, discount, error)."""
         cart_promo = await self.repo.get_cart_promo(user_id)
         if cart_promo is None:

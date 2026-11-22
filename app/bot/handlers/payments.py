@@ -66,14 +66,19 @@ async def finalize_payment(
         return  # the same payment was delivered twice
 
     if result.order is None:
+        problem = result.problem
         await target.answer(
-            t(lang, "pay.refund", reason=escape(result.problem or "?")),
+            t(
+                lang,
+                "pay.refund",
+                reason=escape(problem.text(lang) if problem else "?"),
+            ),
             reply_markup=main_menu_kb(lang),
         )
         await send_to_admins(
             bot,
             f"⚠️ <b>Refund needed</b>: {amount} from {escape(customer.full_name)}\n"
-            f"Reason: {escape(result.problem or 'unknown')}\n"
+            f"Reason: {escape(str(problem) if problem else 'unknown')}\n"
             f"Provider charge ID: <code>{escape(provider_charge_id)}</code>",
         )
         return
@@ -107,9 +112,10 @@ async def pay_online(
             address=data.get("address"),
             latitude=data.get("latitude"),
             longitude=data.get("longitude"),
+            lang=lang,
         )
     except PaymentError as error:
-        await call.answer(str(error), show_alert=True)
+        await call.answer(error.text(lang), show_alert=True)
         return
 
     if settings.mock_payments_enabled:
@@ -181,7 +187,7 @@ async def mock_payment(
             payload, call.from_user.id, cents, payment.currency
         )
         if error:
-            await call.answer(error, show_alert=True)
+            await call.answer(error.text(lang), show_alert=True)
             return
 
         await call.message.edit_text(t(lang, "pay.sandbox_ok"))
@@ -210,12 +216,12 @@ async def mock_payment(
 
 
 @router.pre_checkout_query()
-async def pre_checkout(query: PreCheckoutQuery, session: AsyncSession):
+async def pre_checkout(query: PreCheckoutQuery, session: AsyncSession, lang: str):
     error = await PaymentService(session).validate_pre_checkout(
         query.invoice_payload, query.from_user.id, query.total_amount, query.currency
     )
     if error:
-        await query.answer(ok=False, error_message=error)
+        await query.answer(ok=False, error_message=error.text(lang))
     else:
         await query.answer(ok=True)
 

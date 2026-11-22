@@ -121,7 +121,7 @@ async def show_summary(
     if promo is not None and error:
         await state.clear()
         await message.answer(
-            t(lang, "checkout.promo_invalid", code=escape(promo.code), reason=error),
+            t(lang, "checkout.promo_invalid", code=escape(promo.code), reason=error.text(lang),),
             reply_markup=main_menu_kb(lang),
         )
         return
@@ -256,7 +256,7 @@ async def confirm_order(
     except OrderError as error:
         await state.clear()
         await call.message.edit_text(
-            t(lang, "checkout.error", error=escape(str(error)))
+            t(lang, "checkout.error", error=escape(error.text(lang)))
         )
         await call.message.answer(
             t(lang, "checkout.main_menu"), reply_markup=main_menu_kb(lang)
