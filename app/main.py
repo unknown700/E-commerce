@@ -1,9 +1,12 @@
 import asyncio
 import logging
+from datetime import timedelta
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import text
@@ -17,24 +20,37 @@ from app.bot.handlers import (
     admin_promos,
     admin_reports,
     admin_warehouse,
-    language,
     cart,
     catalog,
     checkout,
     courier,
+    language,
     orders,
     payments,
     promo,
     start,
 )
 from app.bot.middlewares.db import DbSessionMiddleware
+from app.bot.middlewares.language import LanguageMiddleware
 from app.config import settings
 from app.database.session import async_session, engine
 from app.scheduler.jobs import send_daily_report
-from app.bot.middlewares.language import LanguageMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def create_storage():
+    """Redis keeps the checkout state when the bot restarts; memory does not."""
+    if settings.redis_url:
+        logger.info("FSM state is stored in Redis")
+        return RedisStorage.from_url(
+            settings.redis_url,
+            state_ttl=timedelta(hours=24),
+            data_ttl=timedelta(hours=24),
+        )
+    logger.info("FSM state is stored in memory (lost on restart)")
+    return MemoryStorage()
 
 
 async def main():
@@ -48,9 +64,10 @@ async def main():
             parse_mode=ParseMode.HTML, link_preview_is_disabled=True
         ),
     )
-    dp = Dispatcher()
+    dp = Dispatcher(storage=create_storage())
     dp.update.middleware(DbSessionMiddleware(async_session))
     dp.update.middleware(LanguageMiddleware())
+
     dp.include_router(start.router)
     dp.include_router(language.router)
     dp.include_router(catalog.router)
@@ -93,6 +110,8 @@ async def main():
         await dp.start_polling(bot)
     finally:
         scheduler.shutdown(wait=False)
+        await dp.storage.close()
+        await bot.session.close()
 
 
 if __name__ == "__main__":

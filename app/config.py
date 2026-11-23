@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     payment_provider_token: str = ""
     currency: str = "USD"
     payment_mock: bool = False
+    redis_url: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
