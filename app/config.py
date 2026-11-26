@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     currency: str = "USD"
     payment_mock: bool = False
     redis_url: str = ""
+    log_level: str = "INFO"
+    environment: str = "development"  # set to "production" on the server
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

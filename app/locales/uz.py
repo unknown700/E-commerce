@@ -134,4 +134,8 @@ MESSAGES = {
     "promo.reason.used_up": "bu promokod to'liq ishlatilgan",
     "promo.reason.already_used": "siz bu promokodni allaqachon ishlatgansiz",
     "pay.promo_line": "Promokod {code}",
+        # protection and errors
+    "throttle.warn": "⏳ So'rovlar juda ko'p. Iltimos, sekinroq.",
+    "error.generic": "⚠️ Something went wrong. Please try again.\nXatolik yuz berdi. Qaytadan urinib ko'ring.\nEtwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "checkout.expired": "Bu buyurtma sessiyasi tugagan (masalan, bot qayta ishga tushirilgan). Savatni ochib, «Buyurtma berish» tugmasini qaytadan bosing.",
 }

@@ -11,6 +11,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import text
 
+from app.bot.errors import on_error
 from app.bot.handlers import (
     admin,
     admin_catalog,
@@ -32,11 +33,16 @@ from app.bot.handlers import (
 )
 from app.bot.middlewares.db import DbSessionMiddleware
 from app.bot.middlewares.language import LanguageMiddleware
+from app.bot.middlewares.throttling import ThrottlingMiddleware
+from app.bot.notifications import send_to_admins
 from app.config import settings
 from app.database.session import async_session, engine
 from app.scheduler.jobs import send_daily_report
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=settings.log_level.upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 
@@ -67,6 +73,13 @@ async def main():
     dp = Dispatcher(storage=create_storage())
     dp.update.middleware(DbSessionMiddleware(async_session))
     dp.update.middleware(LanguageMiddleware())
+
+    # spam protection for messages and button presses (not for payment checks)
+    throttling = ThrottlingMiddleware(limit=8, period=5.0)
+    dp.message.outer_middleware(throttling)
+    dp.callback_query.outer_middleware(throttling)
+
+    dp.errors.register(on_error)
 
     dp.include_router(start.router)
     dp.include_router(language.router)
@@ -105,6 +118,9 @@ async def main():
         settings.daily_report_minute,
         settings.timezone,
     )
+
+    if settings.environment == "production":
+        await send_to_admins(bot, "🟢 Bot started")
 
     try:
         await dp.start_polling(bot)

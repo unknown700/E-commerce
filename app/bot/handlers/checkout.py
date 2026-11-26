@@ -270,3 +270,10 @@ async def confirm_order(
     await notify_admins(bot, order, user)
     await notify_low_stock(bot, low_stock)
     await call.answer()
+
+
+
+# ---- fallback: a location or phone arrives but the checkout state is gone ----
+@router.message(F.location | F.contact)
+async def checkout_session_expired(message: Message, lang: str):
+    await message.answer(t(lang, "checkout.expired"), reply_markup=main_menu_kb(lang))    

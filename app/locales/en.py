@@ -134,4 +134,8 @@ MESSAGES = {
     "promo.reason.used_up": "this promo code has been fully used",
     "promo.reason.already_used": "you have already used this promo code",
     "pay.promo_line": "Promo {code}",
+        # protection and errors
+    "throttle.warn": "⏳ Too many requests. Please slow down.",
+    "error.generic": "⚠️ Something went wrong. Please try again.\nXatolik yuz berdi. Qaytadan urinib ko'ring.\nEtwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "checkout.expired": "This checkout session has expired (for example, the bot was restarted). Please open your cart and press Checkout again.",
 }

@@ -134,4 +134,8 @@ MESSAGES = {
     "promo.reason.used_up": "dieser Gutscheincode ist vollständig aufgebraucht",
     "promo.reason.already_used": "Sie haben diesen Gutscheincode bereits verwendet",
     "pay.promo_line": "Gutschein {code}",
+        # protection and errors
+    "throttle.warn": "⏳ Zu viele Anfragen. Bitte langsamer.",
+    "error.generic": "⚠️ Something went wrong. Please try again.\nXatolik yuz berdi. Qaytadan urinib ko'ring.\nEtwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "checkout.expired": "Diese Checkout-Sitzung ist abgelaufen (z. B. wurde der Bot neu gestartet). Bitte öffnen Sie Ihren Warenkorb und tippen Sie erneut auf „Zur Kasse“.",
 }
